@@ -21,7 +21,6 @@ if __name__ == '__main__':
     self.write_final_MD_structures()
     if len(self.selected_folders) == 0:
         print('\n\nNo new candidates found for kappa threshold %s'%self.kappa_min)
-        # quit()
     print('\n\n Selected folders:')
     print(self.selected_folders)
     for k in self.selected_folders:
