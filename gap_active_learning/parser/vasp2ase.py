@@ -7,8 +7,7 @@ import argparse
 import numpy as np
 import pandas as pd
 from random import randrange
-# from grundrauschen import *
-from xyz2data import xyz2data
+from gap_active_learning.parser.xyz2data import xyz2data
 
 re_forces = re.compile("""^\s*POSITION""")
 re_virial = re.compile("""^\s*FORCE on cell""")

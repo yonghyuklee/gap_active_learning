@@ -4,7 +4,7 @@ import argparse
 import ase
 import ase.io
 import os
-from xyz2dump import *
+from gap_active_learning.parser.xyz2dump import *
 
 def xyz2data(
              structure,
@@ -87,25 +87,19 @@ def extract_elements(
                      structure,
                      qO,
                      ):
-    noh = sum(np.array(structure.get_chemical_symbols()) == 'H')
     noo = sum(np.array(structure.get_chemical_symbols()) == 'O')
-    nozr = sum(np.array(structure.get_chemical_symbols()) == 'Zr')
+    nobi = sum(np.array(structure.get_chemical_symbols()) == 'Bi')
+    nov = sum(np.array(structure.get_chemical_symbols()) == 'V')
 
-    qH = - 0.5 * qO
-    total_charge = noo * qO - noh *qH
-    if nozr != 0:
-        qZr = - total_charge / nozr
-        elements = {
-                    'Zr': [1, 91.224, qZr],
-                    'O' : [2, 15.9994, qO],
-                    'H' : [3, 1.008,  qH],
-                    }
-    elif nozr == 0:
-        elements = {
-                    'O' : [1, 15.9994000,  qO],
-                    'H' : [2, 1.008,  qH],
-                    }
+    total_charge = noo * qO
+    qBi = ( total_charge / 8 * 3 ) / nobi
+    qV = ( total_charge / 8 * 5 ) / nov
 
+    elements = {
+                'Bi': [1, 208.980, qBi],
+                'V' : [2, 50.942,  qV],
+                'O' : [3, 15.9994, qO],
+                }
     #print(elements)
     return elements
 

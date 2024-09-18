@@ -13,7 +13,7 @@ def update_structure(
                      traj,
                      species=[],
                      soap_info = {
-                                  'rcut':6,
+                                  'rcut':5,
                                   'nmax':8,
                                   'lmax':4,
                                   }
@@ -71,10 +71,10 @@ def different_upper_lower(
             max_similarity.append((np.dot(els,sv)**2).max())
 
     if np.min(max_similarity) < 0.998:
-        print(np.min(max_similarity))
+        #print(np.min(max_similarity))
         return True
     else:
-        print(np.min(max_similarity))
+        #print(np.min(max_similarity))
         return False
 
 
@@ -439,119 +439,3 @@ def plot_cross(
     plt.savefig(output_filename,bbox_inches='tight',dpi=300)
     plt.close()
 
-   
-
-
-if __name__ == '__main__':
-
-    parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
-    parser.add_argument('-g','--generation_analysis', action='store_true',
-                        help='Perform generation analysis (for details see code)')
-    parser.add_argument('-t','--training', type=str, default='training_set.xyz',
-                        help='Trajectory to do a cross check on')
-    parser.add_argument('-s','--structure', type=str, default='final_trajectory.in',
-                        help='structure to do a cross check on')
-    parser.add_argument('-vmin','--vmin', type=float,default=0.995,
-                        help='Giving min threshold for color bar')
-    parser.add_argument('-vmax','--vmax', type=float,default=0.998,
-                        help='Giving max threshold for color bar')
-    parser.add_argument('-o','--output_filename', type=str,default='similarity',
-                        help='output filename')
-    parser.add_argument('-is','--info_string', type=str, default='none',
-                        help='Select only structures from training with stucture_info matching info_string')
-
-
-    args = parser.parse_args()
-
-    vmin = args.vmin
-    vmax = args.vmax
-    if args.generation_analysis:
-        
-        slabs = {
-                 '101' : ['101-t0','101-t1','101-t2'],
-                 '010' : ['010-t0','010-t1','010-t2'],
-                 '111' : ['111-t0','111-t1','111-t2','111-t3'],
-                 '110' : ['110-t0','110-t1','110-t2'],
-                 '001' : ['001-tIr','001-t0','001-tO'],
-                 }
-        if os.path.isfile(args.training):
-            training = ase.io.read(args.training,':')
-        else:
-            training = []
-        structure = args.structure
-        output_filename = args.output_filename
-        similarities = generation_similarity_analysis(
-                                                      sum(slabs.values(), []),
-                                                      training = training,
-                                                      structure_name = structure,
-                                                      vs = [vmin,vmax],
-                                                      output_filename = output_filename,
-                                                      )
-
-        for miller,slab in slabs.items(): 
-            selected_similarities = {key:similarities[key] for key in slab}
-            plot_generation(
-                            selected_similarities, 
-                            vs = [vmin,vmax],
-                            output_filename = miller + '_' + output_filename, 
-                            slabs = slab,
-                            )
-    
-        
-    else:
-        if args.info_string != 'none':
-            training = []
-            loader = ase.io.read(args.training,':')
-            for s in loader:
-                if s.info['structure_info'] == args.info_string:
-                    training.append(s)
-            ase.io.write('training_%s.xyz'%args.info_string,training)
-        else:
-            training = ase.io.read(args.training,':')
-        structure = ase.io.read(args.structure)
-        output_filename = args.output_filename 
-    
-        structure = update_structure([structure])[0]
-        training = update_structure(training)
-            
-        if different_upper_lower(structure):
-            print('Two different surfaces detected for test structure')
-            upper = structure[structure.positions[:,2] > structure.cell[2,2]/2]
-            lower = structure[structure.positions[:,2] < structure.cell[2,2]/2]
-            u_similarity = structure2training(
-                                              upper,
-                                              training,
-                                              )
-            l_similarity = structure2training(
-                                              lower,
-                                              training,
-                                              )
-            print('upper')
-            ase.io.write('upper_best_match.in',best_match(u_similarity,training))
-            print('lower')
-            ase.io.write('lower_best_match.in',best_match(l_similarity,training))
-            plot_single(
-                        u_similarity,
-                        vmin  = vmin, 
-                        vmax = vmax,
-                        output_filename = 'upper_' + output_filename,
-                        )
-            plot_single(
-                        l_similarity,
-                        vmin  = vmin,
-                        vmax = vmax,
-                        output_filename = 'lower_' + output_filename,
-                        )
-    
-        else:
-            similarity = structure2training(
-                                            structure,
-                                            training,
-                                            )
-            ase.io.write('best_match.in',best_match(similarity,training))
-            plot_single(
-                        similarity,
-                        vmin  = vmin, 
-                        vmax = vmax,
-                        output_filename = output_filename,
-                        )

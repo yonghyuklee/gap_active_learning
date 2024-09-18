@@ -61,6 +61,7 @@ class GapGen:
             self.gap_string = open(self.gapfile,'r').readline()[1:-2]
         else:
             print('Gapfile not found, initializing empty instance')
+            
         if os.path.isfile(trainingfile):
             self.trainingfile = os.path.abspath(trainingfile)
             self.training_set = ase.io.read(os.path.abspath(trainingfile),':')
@@ -111,9 +112,6 @@ class GapGen:
                        labels,
                        ):
         self.folders = {}
-        # self.md_energies = pd.DataFrame()
-        # initial_energies = []
-        # final_energies = []
         if not labels:
             labels = []
         if len(labels) == 0:
@@ -133,12 +131,7 @@ class GapGen:
                         l = d.replace(self.mddir,'').replace('/','-')
                         self.folders[l] = os.path.join(self.homedir,d)
                         ie,fe = self.energy_lammps(logfile)
-                        # final_energies.append(fe)
-                        # initial_energies.append(ie)
                         labels.append(l)
-            # self.md_energies['label'] = labels
-            # self.md_energies['initial'] = initial_energies
-            # self.md_energies['final'] = final_energies
 
     def get_gcbh_folders(
                        self,
@@ -158,26 +151,16 @@ class GapGen:
                     directories.append(os.path.join(root, subdir))
             for d in directories:
                 logfile = os.path.join(d,self.gcbh_files['logfile'])
-                # output_name = os.path.join(d,self.gcbh_files['minima_structures'])
                 if os.path.isfile(logfile):
                     if self.gcbh_finished(logfile):
                         l = d.replace(self.mddir,'').replace('/','-')
                         self.folders[l] = os.path.join(self.homedir,d)
-                        # ie,fe = self.energy_lammps(logfile)
-                        # final_energies.append(fe)
-                        # initial_energies.append(ie)
                         labels.append(l)
                     else:
                         print("GCBH is not converged!!")
                         l = d.replace(self.mddir,'').replace('/','-')
                         self.folders[l] = os.path.join(self.homedir,d)
-                        # ie,fe = self.energy_lammps(logfile)
-                        # final_energies.append(fe)
-                        # initial_energies.append(ie)
                         labels.append(l)
-            # self.md_energies['label'] = labels
-            # self.md_energies['initial'] = initial_energies
-            # self.md_energies['final'] = final_energies
 
     def get_dft_folders(
                         self,
@@ -279,7 +262,6 @@ class GapGen:
                     for s in t:
                         s.pbc = True
                         s.set_atomic_numbers([self.lammps_binding[n] for n in s.get_atomic_numbers()])
-#                    t = t[::20]
                     if len(t) == 501:
                         t = t[:-1]
                         print('Caution this is hardcoded, because I fogot to undump the general trajectory!')
@@ -290,16 +272,6 @@ class GapGen:
         times.pop(0)
 
         return trajectories, times
-
-
-    # def parse_log(
-    #               self,
-    #               ):
-    #     parsed_logs = {}
-    #     for l,f in self.folders.items():
-    #         logfile = os.path.join(f,self.md_files['logfile'])
-    #         parsed_logs[l] = parse_lammps(logfile,printit=False)
-    #     self.parsed_logs = parsed_logs
 
 
     def write_final(
@@ -363,8 +335,6 @@ class GapGen:
     def uncertainty_analysis(
                              self,
                              ):
-        # vmin = self.kappa_min - 0.025
-        # vmax = self.kappa_min + 0.025
         self.selected_folders = {}
         self.uncertainties = {}
 
@@ -374,7 +344,6 @@ class GapGen:
             structures = glob.glob("*.xyz")
             for name in structures:
                 print('{}'.format(name))
-                # os.makedirs("{}".format(name.split(".")[0]), exist_ok=True)
                 uncertain_structure = []
                 uncertain_dissimilar_structure = []
                 structure = ase.io.read(name, ":")
@@ -386,7 +355,6 @@ class GapGen:
                     max_uncertain = max(uncertain_structure, key=lambda x: max(x.arrays['local_sigma']))
                     uncertain_dissimilar_structure.append(max_uncertain)
                     uncertain_structure.remove(max_uncertain)
-                    # print(len(uncertain_dissimilar_structure), len(uncertain_structure))
                     while len(uncertain_structure) != 0:
                         sparsed_structure = []
                         similar_structures = []
@@ -394,23 +362,12 @@ class GapGen:
                             score = ga.similarity.quick_score(s1,uncertain_dissimilar_structure[-1])
                             if np.min(score) <= self.kappa_min:
                                 similar_structures.append(n1)
-                            # scores = []
-                            # for s2 in uncertain_dissimilar_structure:
-                            #     scores.append(ga.similarity.quick_score(s1,s2))
-                            # print("min max similarities:", min(scores), max(scores))
-                            # for n2, score in enumerate(scores):
-                            #     if np.min(score) <= self.kappa_min and n2 not in similar_structures:
-                            #         similar_structures.append(n2)
-                                # print(len(similar_structures))
-                        # print(similar_structures)
                         sparsed_structure = [uncertain_structure[i] for i in range(len(uncertain_structure)) if i not in similar_structures]
-                        # print(len(sparsed_structure))
                         if len(sparsed_structure) != 0:
                             max_uncertain = max(sparsed_structure, key=lambda x: max(x.arrays['local_sigma']))
                             uncertain_dissimilar_structure.append(max_uncertain)
                             sparsed_structure.remove(max_uncertain)
                         uncertain_structure = sparsed_structure
-                        # print(len(uncertain_dissimilar_structure), len(uncertain_structure))
                 print("Total {} number of structures are parsed".format(len(uncertain_dissimilar_structure)))
                 if len(uncertain_dissimilar_structure) > 0:
                     self.uncertainties["{}-{}".format(label, name.split(".")[0])] = []
@@ -540,14 +497,6 @@ class GapGen:
                     selected_structures.append(a)
             self.selected_MD_structures = selected_structures
             ase.io.write('selected_MD_structures.xyz',self.selected_MD_structures)
-        # else:
-        #     for label, folder in self.folders.items():
-        #         s = 'final.in'
-        #         atom = ase.io.read(os.path.join(folder,s))
-        #         atom.info['structure_info'] = label
-        #         selected_structures.append(atom)
-        #     self.selected_MD_structures = selected_structures
-        #     ase.io.write('selected_MD_structures.xyz',self.selected_MD_structures)
 
 
     def generate_all_DFT_data(
@@ -698,19 +647,8 @@ calc = Vasp(
      lreal=    False,
      lasph=    True,
      lorbit=   10,
-     ivdw=     12,
      setups=   {'base': 'recommended'},
      algo=     'All',
-     ldau_luj= {'Zr': {'L': 2, 'U': 4, 'J': 0},
-                'O':  {'L': -1, 'U': 0, 'J': 0},
-                'H':  {'L': -1, 'U': 0, 'J': 0},
-                'Cu':  {'L': -1, 'U': 0, 'J': 0},
-                'Pd':  {'L': -1, 'U': 0, 'J': 0},
-                },
-     lmaxmix=  4,
-     ldauprint=0,
-     ldautype= 2,
-     ncore=    32,
      )
 
 atom = ase.io.read("POSCAR")
@@ -871,263 +809,4 @@ atom.get_potential_energy()
             self.relative_energies = self.relative_energies.merge(results,on='label')
         else:
             self.relative_energies = results
-        # plot_relative_DFT_energies(results)
-
-
-# def plot_scores_vs_old(scores):
-#     plt.plot(scores.values(),color='black',marker='x',linestyle='')
-#     plt.xticks(np.arange(len(scores)),scores.keys(),rotation='vertical',)
-#     plt.subplots_adjust(bottom=0.20,left=0.15)
-#     plt.xlim(-1,len(scores))
-#     plt.ylim(0)
-#     plt.ylabel(r'$\kappa$(new,old)')
-#     plt.savefig('similarity2old_complexions')
-#     plt.close()
-
-
-# def plot_relative_DFT_energies(
-#                                results,
-#                                ):
-
-#     results['dft_final'].plot(color='blue',label='relaxed',marker='o',linestyle='')
-#     results['dft_initial'].plot(color='red',label='bulk-truncated',marker='x',linestyle='')
-#     if 'reference' in results:
-#         results['reference'].plot(color='black',label='reference',marker='d',linestyle='')
-#     results['dft_complexion'].plot(color='pink',label='complexion',marker='*',linestyle='')
-#     plt.legend()
-#     plt.xticks(
-#               np.arange(results.shape[0]),
-#               results['label'],
-#               rotation='vertical',
-#               )
-#     plt.subplots_adjust(bottom=0.30,left=0.15)
-#     plt.xlim(-1,len(results))
-#     plt.savefig('relative_energies',dpi=300)
-#     plt.close()
-
-
-# def plot_GAPvsDFT_energies(
-#                            results,
-#                            output_name='GAPvsDFT_formation_energies',
-#                            sfe=False,
-#                            ):
-#     colors={'initial':'red','final':'blue'}
-#     labels={'initial':'bulk-truncated','final':'relaxed'}
-#     for snapshot in ['initial','final']:
-#         x = results['dft_%s'%snapshot]
-#         y = results['GAP_%s'%snapshot]
-#         if sfe:
-#             x /= results['surface_area']
-#             y /= results['surface_area']
-
-#         plt.plot(
-#                  results['dft_%s'%snapshot],
-#                  results['GAP_%s'%snapshot],
-#                  marker = 'o',
-#                  linestyle = '',
-#                  color = colors[snapshot],
-#                  mfc='none',
-#                  label = labels[snapshot],
-#                  markersize=10,
-#                  markeredgewidth=2,
-#                 )
-#     plt.ylabel(
-#                r'$ E^{\mathrm{GAP}}_{\mathrm{coh}} (\mathrm{eV}/\mathrm{atom})$',
-#                fontsize='16',
-#                )
-#     ax = plt.gca()
-#     plt.xlabel(
-#                r'$ E^{\mathrm{DFT}}_{\mathrm{coh}} (\mathrm{eV}/\mathrm{atom})$',
-#                fontsize='16',
-#                )
-#     ylim = plt.ylim()
-#     xlim = plt.xlim()
-#     ll = np.min([xlim[0],ylim[0]])
-#     hl = np.max([xlim[1],ylim[1]])
-#     plt.xlim(ll,hl)
-#     plt.ylim(ll,hl)
-#     plt.plot([ll,hl],[ll, hl],color='black',linestyle='--')
-#     plt.legend(fontsize='12')
-#     plt.subplots_adjust(left=0.22,bottom=0.15)
-#     plt.savefig(output_name,dpi=300)#,bbox_inches='tight')
-#     #plt.savefig(output_name + '.pdf',dpi=1000)#,bbox_inches='tight')
-#     plt.close()
-
-
-# def plot_energy_difference(
-#                            results,
-#                            output_name='GAP_DFT_energy',
-#                            sfe=False,
-#                            ):
-#     colors={'initial':'red','final':'blue'}
-#     labels={'initial':'bulk-truncated','final':'relaxed'}
-#     results = update_labels(results)
-
-#     fig, ax1 = plt.subplots()
-
-#     lns = []
-#     for snapshot in ['initial','final']:
-#         x = results['dft_%s'%snapshot]
-#         y = results['GAP_%s'%snapshot]
-#         if sfe:
-#             x /= results['surface_area']
-#             y /= results['surface_area']
-#         results['diff_%s'%snapshot] = x - y
-#         tlns = ax1.plot(
-#                         results['diff_%s'%snapshot].abs()*1000,
-#                         marker = 'x',
-#                         linestyle = '',
-#                         color = colors[snapshot],
-#                         mfc='none',
-#                         label = labels[snapshot],
-#                         markersize=10,
-#                         markeredgewidth=2,
-#                        )
-#         lns.append(tlns)
-#     plt.legend(fontsize='12',loc='upper left')
-#     ax1.set_ylabel(
-#                    r'$|\gamma_{\mathrm{surf}}^{(hkl),\sigma}|$ $(\mathrm{meV}/\mathrm{\AA}^2)$',
-#                    #r'$\Delta E_{\mathrm{coh}} (\mathrm{meV}/\mathrm{atom})$',
-#                    fontsize='16',
-#                    )
-#     plt.xticks(
-#                np.arange(results.shape[0]),
-#                results['label-fancy'],
-#                rotation='vertical',
-#                 )
-#     ax2 = ax1.twinx()
-#     ax2.set_ylabel(r'$\kappa_{\mathrm{DFT,GAP}}$',fontsize='16')
-#     tlns = ax2.plot(
-#                     results['similarity_score'],
-#                     color = 'green',
-#                     label = r'$\kappa_{\mathrm{DFT,GAP}}$',
-#                     linestyle = '',
-#                     marker = 'd',
-#                     )
-#     lns = lns[0] + lns[1] + tlns
-#     labs = [l.get_label() for l in lns]
-#     ax2.set_ylim(0,0.2)
-# #    ax1.set_ylim(0,115)
-
-#     ax1.legend(lns, labs, loc=0,fontsize='12')
-#     plt.subplots_adjust(left=0.12,bottom=0.30,right=0.85)
-#     plt.savefig('difference_' + output_name,dpi=300)#,bbox_inches='tight')
-#     #plt.savefig(output_name + '.pdf',dpi=1000)#,bbox_inches='tight')
-#     plt.close()
-
-
-
-
-# def plot_energy_similarity(
-#                            similarities,
-#                            energies,
-#                            training_energy = 0,
-#                            output_name = 'geoopt_similiarity_energy',
-#                            soaplim = 0.25
-#                            ):
-
-#     fig, ax1 = plt.subplots()
-#     ax1.set_xlabel(r'Snapshot $i$')
-#     ax1.set_ylabel(r'$E_{\mathrm{rel}}$ ($\gamma_{\mathrm{surf}}^{(hkl),\sigma}) \ (\mathrm{meV}/\mathrm{\AA}^2)$')
-#     ax1.plot(
-#              energies,
-#              color = 'black',
-#              label = r'$E_{\mathrm{rel}}$',
-#              )
-#     if training_energy:
-#         plt.axhline(
-#                     training_energy,
-#                     linestyle=':',
-#                     color = 'grey',
-#                     linewidth = 1.5,
-#                     )
-#     ax2 = ax1.twinx()
-#     ax2.set_ylabel(r'$\kappa(i,C_k^{(hkl)-\sigma}$')
-#     ax2.plot(
-#              similarities,
-#              color = 'green',
-#              label = r'$\kappa_{\mathrm{i,GAP_{min}}}$',
-#              linestyle = '--',
-#              )
-#     ax2.set_ylim(0,soaplim)
-#     ax1.set_xlim(0,len(energies))
-#     plt.subplots_adjust(right=0.85)
-#     plt.subplots_adjust(left=0.15)
-#     plt.savefig(output_name,dpi=300)
-#     plt.close()
-
-
-# def plot_scores(
-#                 scores,
-#                 nmax = 20,
-#                 output_name = 'geoopt_score',
-#                 style = 'training',
-#                 soaplim = 0.25,
-#                 ):
-#     colors = {
-#               '001' : 'black',
-#               '010' : 'red',
-#               '011' : 'blue',
-#               '110' : 'yellow',
-#               '111' : 'green',
-#               }
-#     linestyles = {
-#                   't0' : ':',
-#                   't1' : '-',
-#                   't2' : '--',
-#                   't3' : '--',
-#                   }
-
-#     for label,score in scores.items():
-#         try:
-#             score[0]
-#         except:
-#             score = score[style]
-#         ls = label.split('-')
-#         color = colors[ls[0]]
-#         lsty = linestyles[ls[1]]
-#         if label == '111-t2':
-#             lsty = '-'
-#         plt.plot(
-#                  score,
-#                  color=color,
-#                  label = label,
-#                  linestyle=lsty,
-#                  )
-#     plt.xlim(0,nmax)
-#     plt.ylim(0,soaplim)
-#     plt.legend( bbox_to_anchor=(0.6,0.5))
-#     plt.ylabel(r'$\kappa(B_0^{(hkl)-\sigma},C_1^{(hkl)-\sigma}$')
-#     plt.xlabel(r'Snapshot $i$')
-#     plt.xticks(np.arange(0,nmax+1,5))
-#     plt.tight_layout()
-#     plt.savefig(output_name,dpi=300)
-#     plt.close()
-
-
-# def update_labels(
-#                   sfedata,
-#                   labeldic = {
-#                               '001-t0': '(001) M-rich',
-#                               '001-t1': '(001) stoich',
-#                               '001-t2': '(001) O-rich',
-#                               '010-t0': '(010) M-rich',
-#                               '010-t1': '(010) stoich',
-#                               '010-t2': '(010) O-rich',
-#                               '011-t0': '(101) M-rich',
-#                               '011-t1': '(101) stoich',
-#                               '011-t2': '(101) O-rich',
-#                               '110-t0': '(110) M-rich',
-#                               '110-t1': '(110) stoich',
-#                               '110-t2': '(110) O-rich',
-#                               '111-t0': '(111) M-rich',
-#                               '111-t1': '(111) stoich$_1$',
-#                               '111-t2': '(111) stoich$_2$',
-#                               '111-t3': '(111) O-rich',
-#                             }
-#                      ):
-#     x = pd.DataFrame(columns=['label','label-fancy'])
-#     x['label'] = labeldic.keys()
-#     x['label-fancy'] = labeldic.values()
-#     return sfedata.merge(x)
 
