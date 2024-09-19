@@ -13,14 +13,14 @@ Ry2Ev = 13.6056980659
 bohr2AA = 0.529177
 Ry_bohr2Ev_AA = Ry2Ev / bohr2AA
 
-re_forces    = re.compile("""^\s*Forces acting on atoms""")
-re_positions = re.compile("""^\s*ATOMIC_POSITIONS""")
-re_celldim = re.compile("""^\s*celldm\(1""")
-re_cell = re.compile("""^\s*crystal axes\:""")
-re_CELL = re.compile("""^CELL_PARAMETERS""")
-re_energy = re.compile("""^\s*!    total energy""")
-re_noa = re.compile("""^\s*     number of atoms""")
-re_temperatur = re.compile("""^\s*    Ekin =""")
+re_forces    = re.compile(r"""^\s*Forces acting on atoms""")
+re_positions = re.compile(r"""^\s*ATOMIC_POSITIONS""")
+re_celldim = re.compile(r"""^\s*celldm\(1""")
+re_cell = re.compile(r"""^\s*crystal axes\:""")
+re_CELL = re.compile(r"""^CELL_PARAMETERS""")
+re_energy = re.compile(r"""^\s*!    total energy""")
+re_noa = re.compile(r"""^\s*     number of atoms""")
+re_temperatur = re.compile(r"""^\s*    Ekin =""")
 
 def parse_forces_energy(fd):
     line = fd.readline()

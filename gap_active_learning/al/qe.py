@@ -973,3 +973,217 @@ srun /u/ylee/code-backup/QE/releases/qe-7.0/bin/pw.x -nk 8 < input.inp > out
         else:
             self.relative_energies = results
 
+
+    def check_with_old_complexion(
+                                  self,
+                                  reference='',
+                                  ):
+        if reference == '':
+            raise IOError('reference including old complexions not found')
+        reference = ase.io.read(reference,':')
+        if 'SOAP' not in reference[0].info:
+            reference = ga.similarity.update_structure(reference)
+        scores = {}
+        new_complexions = []
+        for rs in reference:
+            label = rs.info['structure_info']
+            ts = []
+            for s in self.training_set:
+                if s.info['structure_info'] == label:
+                   ts.append(s)
+            sim = ga.similarity.structure2training(rs,ts)
+            try:
+                best_match = ga.similarity.best_match(
+                                                      sim,
+                                                      ts,
+                                                      )
+                ase.io.write('bm_%s.in'%label,best_match)
+                ase.io.write('ref_%s.in'%label,rs)
+                scores[label] = np.max(np.transpose(sim.values()),axis=1).min()
+                new_complexions.append(best_match)
+            except ValueError:
+                print('No structure for %s found in given trajectory'%label)
+        ase.io.write('current_complexions.xyz',new_complexions)
+        return scores
+
+
+def plot_scores_vs_old(scores):
+    plt.plot(scores.values(),color='black',marker='x',linestyle='')
+    plt.xticks(np.arange(len(scores)),scores.keys(),rotation='vertical',)
+    plt.subplots_adjust(bottom=0.20,left=0.15)
+    plt.xlim(-1,len(scores))
+    plt.ylim(0)
+    plt.ylabel(r'$\kappa$(new,old)')
+    plt.savefig('similarity2old_complexions')
+    plt.close()
+
+
+def plot_relative_DFT_energies(
+                               results,
+                               ):
+
+    results['dft_final'].plot(color='blue',label='relaxed',marker='o',linestyle='')
+    results['dft_initial'].plot(color='red',label='bulk-truncated',marker='x',linestyle='')
+    if 'reference' in results:
+        results['reference'].plot(color='black',label='reference',marker='d',linestyle='')
+    results['dft_complexion'].plot(color='pink',label='complexion',marker='*',linestyle='')
+    plt.legend()
+    plt.xticks(
+              np.arange(results.shape[0]),
+              results['label'],
+              rotation='vertical',
+              )
+    plt.subplots_adjust(bottom=0.30,left=0.15)
+    plt.xlim(-1,len(results))
+    plt.savefig('relative_energies',dpi=300)
+    plt.close()
+
+
+def plot_GAPvsDFT_energies(
+                           results,
+                           output_name='GAPvsDFT_formation_energies',
+                           sfe=False,
+                           ):
+    colors={'initial':'red','final':'blue'}
+    labels={'initial':'bulk-truncated','final':'relaxed'}
+    for snapshot in ['initial','final']:
+        x = results['dft_%s'%snapshot]
+        y = results['GAP_%s'%snapshot]
+        if sfe:
+            x /= results['surface_area']
+            y /= results['surface_area']
+
+        plt.plot(
+                 results['dft_%s'%snapshot],
+                 results['GAP_%s'%snapshot],
+                 marker = 'o',
+                 linestyle = '',
+                 color = colors[snapshot],
+                 mfc='none',
+                 label = labels[snapshot],
+                 markersize=10,
+                 markeredgewidth=2,
+                )
+    plt.ylabel(
+               r'$ E^{\mathrm{GAP}}_{\mathrm{coh}} (\mathrm{eV}/\mathrm{atom})$',
+               fontsize='16',
+               )
+    ax = plt.gca()
+    plt.xlabel(
+               r'$ E^{\mathrm{DFT}}_{\mathrm{coh}} (\mathrm{eV}/\mathrm{atom})$',
+               fontsize='16',
+               )
+    ylim = plt.ylim()
+    xlim = plt.xlim()
+    ll = np.min([xlim[0],ylim[0]])
+    hl = np.max([xlim[1],ylim[1]])
+    plt.xlim(ll,hl)
+    plt.ylim(ll,hl)
+    plt.plot([ll,hl],[ll, hl],color='black',linestyle='--')
+    plt.legend(fontsize='12')
+    plt.subplots_adjust(left=0.22,bottom=0.15)
+    plt.savefig(output_name,dpi=300)
+    plt.close()
+
+
+def plot_energy_difference(
+                           results,
+                           output_name='GAP_DFT_energy',
+                           sfe=False,
+                           ):
+    colors={'initial':'red','final':'blue'}
+    labels={'initial':'bulk-truncated','final':'relaxed'}
+    results = update_labels(results)
+
+    fig, ax1 = plt.subplots()
+
+    lns = []
+    for snapshot in ['initial','final']:
+        x = results['dft_%s'%snapshot]
+        y = results['GAP_%s'%snapshot]
+        if sfe:
+            x /= results['surface_area']
+            y /= results['surface_area']
+        results['diff_%s'%snapshot] = x - y
+        tlns = ax1.plot(
+                        results['diff_%s'%snapshot].abs()*1000,
+                        marker = 'x',
+                        linestyle = '',
+                        color = colors[snapshot],
+                        mfc='none',
+                        label = labels[snapshot],
+                        markersize=10,
+                        markeredgewidth=2,
+                       )
+        lns.append(tlns)
+    plt.legend(fontsize='12',loc='upper left')
+    ax1.set_ylabel(
+                   r'$|\gamma_{\mathrm{surf}}^{(hkl),\sigma}|$ $(\mathrm{meV}/\mathrm{\AA}^2)$',
+                   fontsize='16',
+                   )
+    plt.xticks(
+               np.arange(results.shape[0]),
+               results['label-fancy'],
+               rotation='vertical',
+                )
+    ax2 = ax1.twinx()
+    ax2.set_ylabel(r'$\kappa_{\mathrm{DFT,GAP}}$',fontsize='16')
+    tlns = ax2.plot(
+                    results['similarity_score'],
+                    color = 'green',
+                    label = r'$\kappa_{\mathrm{DFT,GAP}}$',
+                    linestyle = '',
+                    marker = 'd',
+                    )
+    lns = lns[0] + lns[1] + tlns
+    labs = [l.get_label() for l in lns]
+    ax2.set_ylim(0,0.2)
+
+    ax1.legend(lns, labs, loc=0,fontsize='12')
+    plt.subplots_adjust(left=0.12,bottom=0.30,right=0.85)
+    plt.savefig('difference_' + output_name,dpi=300)
+    plt.close()
+
+
+
+
+def plot_energy_similarity(
+                           similarities,
+                           energies,
+                           training_energy = 0,
+                           output_name = 'geoopt_similiarity_energy',
+                           soaplim = 0.25
+                           ):
+
+    fig, ax1 = plt.subplots()
+    ax1.set_xlabel(r'Snapshot $i$')
+    ax1.set_ylabel(r'$E_{\mathrm{rel}}$ ($\gamma_{\mathrm{surf}}^{(hkl),\sigma}) \ (\mathrm{meV}/\mathrm{\AA}^2)$')
+    ax1.plot(
+             energies,
+             color = 'black',
+             label = r'$E_{\mathrm{rel}}$',
+             )
+    if training_energy:
+        plt.axhline(
+                    training_energy,
+                    linestyle=':',
+                    color = 'grey',
+                    linewidth = 1.5,
+                    )
+    ax2 = ax1.twinx()
+    ax2.set_ylabel(r'$\kappa(i,C_k^{(hkl)-\sigma}$')
+    ax2.plot(
+             similarities,
+             color = 'green',
+             label = r'$\kappa_{\mathrm{i,GAP_{min}}}$',
+             linestyle = '--',
+             )
+    ax2.set_ylim(0,soaplim)
+    ax1.set_xlim(0,len(energies))
+    plt.subplots_adjust(right=0.85)
+    plt.subplots_adjust(left=0.15)
+    plt.savefig(output_name,dpi=300)
+    plt.close()
+
+
+
