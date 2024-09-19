@@ -39,6 +39,31 @@ scipy==1.14.1
 termcolor==2.4.0
 ```
 
+# Installation
+
+If your machine has Git installed, simply clone the repo to your local directory by:
+
+```
+git clone https://github.com/yonghyuklee/gap_active_learning.git
+```
+
+After fetching the gap_active_learning repo, add it to your PYTHONPATH by:
+
+```
+export PYTHONPATH=$PYTHONPATH:`pwd`/gap_active_learning
+```
+Remember to add this export line to your ~/.bashrc or the submission script, so that it is accessible by Python when you run the job.
+
+You need to use the absolute path (you can check it by running `pwd` in Bash shell) for this purpose.
+
+After these, run the following line to test:
+
+```
+python -c 'import gap_active_learning'
+```
+If no error occurs, it should have been imported into your path!
+
+
 # Tuturial
 
 **BiVO4**
@@ -81,3 +106,20 @@ python path/to/gap_active_learning/gap_active_learning/runner/qe/analyze_DFT.py
 ```
 
 The final selected structures are saved in the `add_forces.xyz` file.
+
+# If ValueError encountered
+
+For example, if you encounter the ValueError such as:
+```
+ValueError: Array “initial_charges” has wrong shape (60, 1) != (60,).
+```
+This is not the error from this repository but from ase reading initial_charges within the LAMMPS input file. You can resolve this by editing:
+```
+path/to/site-packages/ase/io/lammpsrun.py
+```
+find the line below and revise:
+```
+   if charges is not None:
+       #out_atoms.set_initial_charges(charges) # commend out this line
+       out_atoms.set_array('initial_charges', charges, float,charges.shape[1:]) # add this line
+```
