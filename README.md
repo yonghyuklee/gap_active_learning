@@ -4,6 +4,23 @@ An integrated protocol for iterative training of the Gaussian Approximation Pote
 
 Copyright © 2024 Yonghyuk Lee
 
+# Citation
+
+Please CITE the following paper if you use any methodologies from this repository:
+
+```
+@article{Timmermann2021,
+  title={Data-efficient iterative training of Gaussian approximation potentials: application to surface structure determination of rutile IrO$_{2}$ and RuO$_{2}$},
+  author={Timmermann, Jakob and Lee, Yonghyuk and Staacke, Carsten G and Margraf, Johannes T and Scheurer, Christoph and Reuter, Karsten},
+  journal={The Journal of Chemical Physics},
+  volume={155},
+  number={24},
+  year={2021},
+  publisher={AIP Publishing}
+}
+```
+The manuscript titled `Machine-Learning-Accelerated Surface Exploration of Reconstructed BiVO4(010) and Characterization of Their Aqueous Interfaces` is currently under peer review, with further details to be provided upon publication. Please CITE this paper if you utilize the training set of BiVO4 surfaces.
+
 # Requirements
 
 `pip install -r requirements.txt`
@@ -50,19 +67,3 @@ python path/to/gap_active_learning/gap_active_learning/runner/qe/analyze_DFT.py
 ```
 
 The final selected structures are saved in the `add_forces.xyz` file.
-
-Please CITE the following papers if you use any part of this repo:
-
-```
-@article{Timmermann2021,
-  title={Data-efficient iterative training of Gaussian approximation potentials: application to surface structure determination of rutile IrO$_{2}$ and RuO$_{2}$},
-  author={Timmermann, Jakob and Lee, Yonghyuk and Staacke, Carsten G and Margraf, Johannes T and Scheurer, Christoph and Reuter, Karsten},
-  journal={The Journal of Chemical Physics},
-  volume={155},
-  number={24},
-  year={2021},
-  publisher={AIP Publishing}
-}
-```
-
-The manuscript titled `Machine-Learning-Accelerated Surface Exploration of Reconstructed BiVO4(010) and Characterization of Their Aqueous Interfaces` is currently under peer review, with further details to be provided upon publication. Please CITE this paper if you utilize the training set of BiVO4 surfaces.
