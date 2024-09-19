@@ -27,24 +27,17 @@ The manuscript titled `Machine-Learning-Accelerated Surface Exploration of Recon
 
 Tested versions of requirements:
 
+```
 ase==3.23.0
-
 dscribe==2.1.1
-
 matplotlib==3.9.2
-
 numpy==2.0.2
-
 pandas==2.2.2
-
 python==3.12.6
-
 scikit-learn==1.5.2
-
 scipy==1.14.1
-
 termcolor==2.4.0
-
+```
 
 # Tuturial
 
