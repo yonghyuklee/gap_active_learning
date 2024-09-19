@@ -1,0 +1,7 @@
+ase==3.22.1
+dscribe==1.2.2
+matplotlib==3.8.0
+numpy==1.23.5
+pandas==1.5.3
+scikit_learn==1.2.0
+termcolor==2.4.0
