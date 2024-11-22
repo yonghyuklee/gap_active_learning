@@ -107,7 +107,7 @@ python path/to/gap_active_learning/gap_active_learning/runner/qe/analyze_DFT.py
 
 The final selected structures are saved in the `add_forces.xyz` file.
 
-# If ValueError encountered
+**If ValueError encountered**
 
 For example, if you encounter the ValueError such as:
 ```
