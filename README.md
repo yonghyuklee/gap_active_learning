@@ -123,3 +123,4 @@ find the line below and revise:
        #out_atoms.set_initial_charges(charges) # commend out this line
        out_atoms.set_array('initial_charges', charges, float,charges.shape[1:]) # add this line
 ```
+This issue appears to have been resolved in the latest versions of ASE.
