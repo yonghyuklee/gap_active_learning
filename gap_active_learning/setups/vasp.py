@@ -7,6 +7,7 @@ import numpy as np
 import scipy.linalg as LA
 import sys, os
 
+# generate Kpoint grids from kspacing value
 def kpoint_grid(cell, dx):
     rc = cell.cell.reciprocal()
     l_rc = np.empty(3, dtype=np.float64)
@@ -20,6 +21,7 @@ def kpoint_grid(cell, dx):
             k_grid_rounded[i] = 1
     return k_grid_rounded
 
+# setup VASP calculator
 calc = Vasp(
      txt=      'stdout',
      prec=     'Accurate',
@@ -54,20 +56,26 @@ calc = Vasp(
      ncore=5,
      )
 
+# read input structure
 atom = ase.io.read("POSCAR")
+
+# if structure too large, set kpoints gamma only.
 if len(atom) > 300:
     kpts = [1,1,1]
 else:
     kpts = kpoint_grid(atom, 0.03)
 
+# for slab calculation, set kpoints for z to 1.
 if kpts[2] != 1:
     kpts[2] = 1
 print("k-points: ", kpts)
 calc.set(kpts=kpts)
+
 atom.calc = calc
 
 atom.get_potential_energy()
 
+# in case SCF was not converged within NELM
 file_path = 'stdout'
 with open(file_path, 'r') as file:
     file_contents = file.read()

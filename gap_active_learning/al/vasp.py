@@ -773,9 +773,9 @@ class MACEGen:
                                           ):
         selected_structures = []
         for label_folder in self.folders.items():
-            s = 'md.xyz'
+            s = self.md_files
             label, folder = label_folder
-            print(f"MLP simulated structures read fromls {folder}")
+            print(f"MLP simulated structures read from {folder}")
             atoms = ase.io.read(os.path.join(folder,s), ":")
 
             std_devs = []
