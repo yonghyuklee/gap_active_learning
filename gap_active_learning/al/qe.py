@@ -13,7 +13,7 @@ import ase.io.espresso
 import operator
 from termcolor import colored
 
-import gap_active_learning.parser.QEupdate as QEgenerator
+import gap_active_learning.setups.qe as QEgenerator
 from gap_active_learning.parser.qe2ase import process_ase
 
 import gap_active_learning.al as ga
@@ -460,60 +460,6 @@ class GapGen:
                                        label_folder,
                                        structures,
                                        )
-        self.write_dft_starter()
-
-
-    def write_dft_starter(self):
-        file = open(os.path.join(self.dftdir,'start_dft.sh'),'w')
-        file.write("""curdir=$(pwd)
-controlfile=$curdir/dft.cmd
-for m in `ls -d */`; do
-        cd $m
-        m=$(echo "$m" | tr -d ./)
-        for t in `find . -maxdepth 1 -mindepth 1 -type d -name '*t*'`; do
-                cd $t
-                t=$(echo "$t" | tr -d ./)
-                jobname=$1$m$t
-                echo $m $t
-                cd final
-                cp $controlfile control.cmd
-                sed -i "s/JOBNAME/$jobname/" control.cmd
-                sed -i "s/WALLTIME/08/" control.cmd
-                sbatch control.cmd
-                cd ../
-                cd ../
-            done
-        cd ../
-done
-                   """)
-        file = open(os.path.join(self.dftdir,'dft.cmd'),'w')
-# UPDATE FOR YOUR SUBMISSION SCRIPT
-        file.write("""#!/bin/bash -l
-#SBATCH -o ./tjob.out
-#SBATCH -e ./tjob.err
-#SBATCH -D ./
-#SBATCH -J JOBNAME
-#SBATCH --nodes=4
-#SBATCH --ntasks-per-node=40
-#SBATCH --mail-type=all
-#SBATCH --mail-user=
-# Wall clock limit:
-#SBATCH --time=WALLTIME:00:00
-
-module purge
-unset LD_LIBRARY_PATH
-module load anaconda/3/2021.11 gcc/12 impi/2021.7 mkl/2022.2 gsl/2.4 intel/21.7.1
-source /u/ylee/.bashrc
-conda activate BiVO4
-export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$MKLROOT/lib/intel64/"
-source "$MKLROOT/env/vars.sh"
-MKLL=$MKLROOT/lib/intel64/libmkl_
-IOMP5=$(realpath "$MKLROOT/../../compiler/2022.2.1/linux/compiler/lib/intel64_lin/libiomp5.so")
-export LD_PRELOAD="${MKLL}def.so.2:${MKLL}avx512.so.2:${MKLL}core.so.2:${MKLL}intel_lp64.so.2:${MKLL}intel_thread.so.2:$IOMP5"
-
-srun /u/ylee/code-backup/QE/releases/qe-7.0/bin/pw.x -nk 8 < input.inp > out
-
-                   """)
 
 
     def take_HT(
@@ -1093,7 +1039,7 @@ def plot_energy_difference(
                            ):
     colors={'initial':'red','final':'blue'}
     labels={'initial':'bulk-truncated','final':'relaxed'}
-    results = update_labels(results)
+    # results = update_labels(results)
 
     fig, ax1 = plt.subplots()
 

@@ -1,16 +1,16 @@
 import ase, ase.io
 import ase.io.espresso
-import re, os, sys
+import re, os
 import copy
-import string
 import matplotlib
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 import argparse
 import numpy as np
+from ase.units import Ry, eV, Bohr, Angstrom
 
-Ry2Ev = 13.6056980659
-bohr2AA = 0.529177
+Ry2Ev = Ry/eV
+bohr2AA = Bohr/Angstrom
 Ry_bohr2Ev_AA = Ry2Ev / bohr2AA
 
 re_forces    = re.compile(r"""^\s*Forces acting on atoms""")

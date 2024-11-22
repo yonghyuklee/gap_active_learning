@@ -1,13 +1,13 @@
 import ase, ase.io
 import os 
-import argparse
-import re
 import numpy as np
 import matplotlib
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt 
 from dscribe.descriptors import SOAP
 from sklearn.preprocessing import normalize
+from ase.neighborlist import NeighborList, natural_cutoffs
+from scipy import sparse
 
 def update_structure(
                      traj,
@@ -344,6 +344,19 @@ def force_parsing(
             else:
                 fslabs.append(slab)
         return fslabs
+
+
+def examine_unconnected_components(atoms):
+    nat_cut = natural_cutoffs(atoms, mult=1.2)
+    nl = NeighborList(nat_cut, skin=0, self_interaction=False, bothways=True)
+    nl.update(atoms)
+    matrix = nl.get_connectivity_matrix()
+    n_components, component_list = sparse.csgraph.connected_components(matrix)
+    if n_components == 1:
+        return True
+    elif n_components > 1:
+        return False
+
 
 def plot_single(
                 similarity,

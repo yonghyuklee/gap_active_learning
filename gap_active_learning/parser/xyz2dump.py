@@ -4,7 +4,6 @@ import ase.io
 import pandas as pd 
 
 symbol2type = {'Bi':1, 'V': 2, 'O':3}
-#symbol2type = {'Zr':1,'O':2,'H':3}
 
 def lattice2lammps(
                    cell,

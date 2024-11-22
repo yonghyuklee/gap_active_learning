@@ -1,8 +1,3 @@
-import ase.io
-import ase.io.espresso
-import argparse
-import os
-
 data = dict({
      'restart_mode':       'from_scratch',
      'prefix':             'BiVO4',
