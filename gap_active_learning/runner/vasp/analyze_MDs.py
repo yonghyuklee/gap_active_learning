@@ -1,27 +1,49 @@
-import sys
+import argparse
 from gap_active_learning.al.vasp import *
 from gap_active_learning.al.similarity import *
+from gap_active_learning.setups.hpc import *
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
+    parser.add_argument('-mlp','--mlp', type=str, default='GAP',
+                        help='Choose MLP class among GAP and MACE (default: GAP)')
+    parser.add_argument('-HPC','--hpc_cluster', type=str, default='Polaris',
+                        help='Choose HPC cluster you want to run DFT calculations')
     args = parser.parse_args()
 
-    self = GapGen(
-                  'gap.xml',
-                  'training_set.xyz',
-                #   kappa_min = 0.00000001,
-                #   geoopt_maxsteps = 100,
-                  uncertainty_min = 50,
-                  kappa_min = 0.1
-                  )
-    print('Calculating best similarities')
-    self.uncertainty_analysis()
-    self.write_selected_for_DFT()
-    if len(self.selected_folders) == 0:
-        print('\n\nNo new candidates found for kappa threshold %s'%self.kappa_min)
-    print('\n\n Selected folders:')
-    print(self.selected_folders)
-    for k in self.uncertainties:
-        print("Maximum uncertanty for {} is {} meV/atom".format(k, self.uncertainties[k]))
-    print('\n Writing DFT data')
-    self.generate_all_DFT_data()
+    if args.mlp == 'GAP':
+        self = GapGen(
+                      'gap.xml',
+                      'training_set.xyz',
+                    #   kappa_min = 0.00000001,
+                    #   geoopt_maxsteps = 100,
+                      uncertainty_min = 50,
+                      kappa_min = 0.1
+                      )
+        print('Calculating best similarities')
+        self.uncertainty_analysis()
+        self.write_selected_for_DFT()
+        if len(self.selected_folders) == 0:
+            print('\n\nNo new candidates found for kappa threshold %s'%self.kappa_min)
+        print('\n\n Selected folders:')
+        print(self.selected_folders)
+        for k in self.uncertainties:
+            print("Maximum uncertanty for {} is {} meV/atom".format(k, self.uncertainties[k]))
+        print('\n Writing DFT data')
+        self.generate_all_DFT_data()
+        write_dft_starter(self.dftdir)
+        write_job_script(self.dftdir, hpc=args.hpc_cluster)
+    
+    elif args.mlp == 'MACE':
+        self = MACEGen(
+                       md_files = {
+                                 'final_structure' :'md.xyz',
+                                 },
+                       max_selected = 1000,
+                       nn_uncertainty = 0.4,
+                       max_force = 30,
+                      )
+        print('\n Writing DFT data')
+        self.generate_DFT_data_from_uncertainty()
+        write_dft_starter(self.dftdir, walltime="06")
+        write_job_script(self.dftdir, hpc=args.hpc_cluster)

@@ -1,29 +1,21 @@
-import os, sys, argparse
 import numpy as np
 import matplotlib
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
-
-import ase, ase.io
-import ase.io.vasp
-import ase.io.espresso
-
+import os
+import ase, ase.io, ase.io.vasp
 import pandas as pd
-import tempfile
-import pickle
 import pathlib
-
-import operator
 import glob
 from termcolor import colored
 
-#from xyz2data import *
 from gap_active_learning.parser.vasp2ase import process_ase
-#from lammps import *
 
 import gap_active_learning.al as ga
+from gap_active_learning.setups.vasp import *
 
 
+# MLP: GAP Class
 class GapGen:
 
     def __init__(
@@ -198,17 +190,6 @@ class GapGen:
                       ):
         with open(logfile) as lf:
             if 'The best solution has not improved' in lf.read():
-                return True
-            else:
-                return False
-
-
-    def qe_finished(
-                    self,
-                    qe_output,
-                    ):
-        with open(qe_output) as qo:
-            if ' JOB DONE.' in qo.read():
                 return True
             else:
                 return False
@@ -518,158 +499,46 @@ class GapGen:
                                        label_folder,
                                        structures,
                                        )
-        self.write_dft_starter()
 
-
-    def write_dft_starter(self):
-        file = open(os.path.join(self.dftdir,'start_dft.sh'),'w')
-        file.write("""curdir=$(pwd)
-controlfile=$curdir/dft.cmd
-directories=$(find . -type f -name "POSCAR" -exec dirname {} \;)
-for d in $directories; do
-        cd $d
-        m=$(echo "$d" | tr -d ./_psrdanonial)
-        jobname=$m
-        echo $m
-        cp $controlfile control.cmd
-        sed -i "s/JOBNAME/$jobname/" control.cmd
-        sed -i "s/WALLTIME/06/" control.cmd
-        qsub control.cmd
-        cd $curdir
-done
-                   """)
-        file = open(os.path.join(self.dftdir,'dft.cmd'),'w')
-        file.write("""#!/bin/sh
-#PBS -l select=25
-#PBS -l place=scatter
-#PBS -l walltime=WALLTIME:00:00
-#PBS -l filesystems=home:grand:eagle
-#PBS -q prod
-#PBS -N JOBNAME
-#PBS -A CatDynEnsemble
-
-source ~/.bashrc
-conda activate tio2
-module purge
-module load nvhpc/23.3
-module load PrgEnv-nvhpc/8.3.3
-module load cray-libsci/23.02.1.1
-module load craype-accel-nvidia80
-
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/opt/nvidia/hpc_sdk/Linux_x86_64/23.3/compilers/extras/qd/lib
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/soft/libraries/aocl/3.2.0/lib
-
-# Change to working directory
-cd ${PBS_O_WORKDIR}
-
-export MPICH_GPU_SUPPORT_ENABLED=1
-NNODES=`wc -l < $PBS_NODEFILE`
-NRANKS=2
-NDEPTH=4
-NTHREADS=4
-NGPUS=2
-NTOTRANKS=$(( NNODES * NRANKS ))
-
-export ASE_VASP_COMMAND="mpiexec -n ${NTOTRANKS} --ppn ${NRANKS} --depth ${NDEPTH} --cpu-bind depth --env OMP_NUM_THREADS=${NTHREADS} /home/ylee/codes/VASP/source/vasp.6.4.1/bin/vasp_std"
-export VASP_PP_PATH=/home/ylee/codes/VASP/source
-
-python run_vasp.py                   
-                   """)
 
     def generate_DFT_data(
                           self,
                           label_folder,
-                          structures = 'structures.xyz',
-                          ):
+                          structures={'final': 'final.xyz'},
+                         ):
         label, folder = label_folder
         ls = label.split('-')
         print(ls)
-        atom = ase.io.read(os.path.join(folder,structures), ":")
-        for n, a in enumerate(atom):
-            nn = f'{n:03d}'
-            if len(ls) == 3:
-                tpath = os.path.join(self.dftdir,ls[0],ls[1],ls[2],nn)
-            else:
-                tpath = os.path.join(self.dftdir,ls[0],ls[1],nn)
-            try:
-                pathlib.Path(tpath).mkdir(parents=True)
-            except OSError:
-                pass
-
-            ase.io.vasp.write_vasp(os.path.join(tpath,self.dft_files['input_structure']), a, vasp5=True, sort=True)
-
-            file = open(os.path.join(tpath,self.dft_files['run_script']),'w')
-            file.write("""import ase, ase.io
-import ase.io.vasp
-from ase.calculators.vasp import Vasp
-import scipy.linalg as LA
-import numpy as np
-import sys
-
-def kpoint_grid(cell, dx, fd_info=sys.stdout):
-    rc = cell.cell.reciprocal()
-    l_rc = np.empty(3,dtype=np.float64)
-    for i in range(3):
-        l_rc[i] = LA.norm(rc[i], 2)
-    v = l_rc[:]/dx
-
-    k_grid_large = list(map(int, np.ceil(v)))
-    dx_large = l_rc[:]/list(map(float, k_grid_large[:]))
-    k_grid_small =  list(map(int, np.floor(v)))
-    k_grid_rounded =  list(map(int, np.rint(v)))
-    for i in range(3):
-        if k_grid_small[i] == 0:
-            k_grid_small[i] = 1
-        if k_grid_rounded[i] == 0:
-            k_grid_rounded[i] = 1
-    dx_small = l_rc[:]/list(map(float, k_grid_small[:]))
-    dx_rounded = l_rc[:]/list(map(float, k_grid_rounded[:]))
-    print(k_grid_rounded)
-    return k_grid_rounded
-                       
-calc = Vasp(
-     txt=      'stdout',
-     prec=     'Accurate',
-     xc=       'PBE',
-     pp=       'PBE',
-     gamma=    True,
-     reciprocal= True,
-     encut=    500,
-     ediff=    1E-5,
-     ismear=   0,
-     sigma=    0.1,
-     nelm=     500,
-     nsw=      0,
-     ispin=    2,
-     ibrion=   -1,
-     lwave=    False,
-     lcharg=   False,
-     lreal=    False,
-     lasph=    True,
-     lorbit=   10,
-     setups=   {'base': 'recommended'},
-     algo=     'All',
-     )
-
-atom = ase.io.read("POSCAR")
-kpts = kpoint_grid(atom, 0.04)
-calc.set(kpts=kpts)
-atom.calc = calc
-
-atom.get_potential_energy()
-                   
-                       """)
-            
+    
+        for n, s in structures.items():
+            atoms = ase.io.read(os.path.join(folder, s), ':')
+            for i, atom in enumerate(atoms):
+                # Generalized path generation
+                tpath = os.path.join(self.dftdir, *ls, n, "%.3d" % i)
+    
+                # Ensure the directory exists
+                pathlib.Path(tpath).mkdir(parents=True, exist_ok=True)
+    
+                # Write structure file
+                ase.io.vasp.write_vasp(
+                    os.path.join(tpath, self.dft_files['input_structure']),
+                    atom,
+                    vasp5=True,
+                    sort=True,
+                )
+    
+                # Write run script
+                with open(os.path.join(tpath, self.dft_files['run_script']), 'w') as file:
+                    file.write(generate_vasp_script())
+    
         os.chdir(self.homedir)
 
 
-    def extract_forces(
-                       self,
-                       ):
+    def extract_forces(self):
         self.dft_scores = {}
         keeper = []
         for label, folder in self.dft_folders.items():
-            print('\nChecking DFT results of %s'%label)
+            print(f'\nChecking DFT results of {label}')
             for key in folder:
                 keeper += self.check_dft(
                                          folder[key],
@@ -712,7 +581,6 @@ atom.get_potential_energy()
         result = process_ase(
                              s,
                              os.path.join(folder,self.dft_files['output']),
-                             qeq = False,
                              )
         s = result[0]
         for k in s:
@@ -810,3 +678,239 @@ atom.get_potential_energy()
         else:
             self.relative_energies = results
 
+
+# MLP: MACE Class
+class MACEGen:
+
+    def __init__(
+                 self,
+                 dft_files = {
+                             'input_structure' :'POSCAR',
+                             'output' :'OUTCAR',
+                             'run_script': 'run_vasp.py',
+                             },
+                 md_files = {
+                             'final_structure' :'md.xyz',
+                             },
+                 md_dir = 'md/',
+                 max_selected = 100,
+                 nn_uncertainty = 0.1,
+                 max_force = 10,
+                 ):
+
+        self.homedir = os.path.abspath('.')
+        self.max_selected = max_selected
+        self.mddir = os.path.join(self.homedir,md_dir)
+        self.nn_uncertainty = nn_uncertainty
+        self.max_force = max_force
+
+        if self.mddir[-1] != '/':
+            self.mddir+= '/'
+        self.dftdir = os.path.join(self.homedir,'dft/')
+        self.dft_files = dft_files
+        self.md_files = md_files
+
+        self.get_md_folders()
+
+
+    def get_md_folders(
+                       self,
+                       ):
+        self.folders = {}
+        self.md_energies = pd.DataFrame()
+        final_energies = []
+        labels = []
+
+        for dinfo in os.walk(self.mddir):
+            d = dinfo[0]
+            output_name = os.path.join(d,self.md_files['final_structure'])
+            if os.path.isfile(output_name):
+                try:
+                    final = ase.io.read(output_name)
+                    l = d.replace(self.mddir,'').replace('/','-')
+                    self.folders[l] = os.path.join(self.homedir,d)
+                    fe = final.get_potential_energy()
+                    final_energies.append(fe)
+                    labels.append(l)
+                except:
+                    pass
+        self.md_energies['label'] = labels
+        self.md_energies['final'] = final_energies
+
+
+    def get_dft_folders(self):
+        self.dft_folders = {}
+        for root, _, _ in os.walk(self.dftdir):
+            dft_output = os.path.join(root, self.dft_files['input_structure'])
+            if os.path.isfile(dft_output):
+                path = pathlib.Path(root).parent.resolve()
+                folder_extension = pathlib.Path(root).name
+                label = str(path.relative_to(self.dftdir)).replace('/', '-')
+
+                # Use setdefault to simplify appending subfolders
+                self.dft_folders.setdefault(label, {})[folder_extension] = str(root)
+
+
+    def vasp_finished(self, vasp_output):
+        try:
+            with open(vasp_output) as qo:
+                content = qo.read()
+            if 'aborting loop EDIFF was not reached (unconverged)' in content:
+                print(colored('DFT not converged in NELM', 'red'))
+                return False
+            if 'Total CPU time used' in content:
+                print(colored('DFT FINISHED', 'green'))
+                return True
+            print(colored('DFT status unknown', 'yellow'))
+            return False
+        except FileNotFoundError:
+            print(colored(f'File not found: {vasp_output}', 'red'))
+            return False
+
+
+    def generate_DFT_data_from_uncertainty(
+                                           self,
+                                          ):
+        selected_structures = []
+        for label_folder in self.folders.items():
+            s = 'md.xyz'
+            label, folder = label_folder
+            print(f"MLP simulated structures read fromls {folder}")
+            atoms = ase.io.read(os.path.join(folder,s), ":")
+
+            std_devs = []
+            for i, a in enumerate(atoms):
+                try:
+                    a_f = a.arrays['MACE_fitA_forces']
+                    b_f = a.arrays['MACE_fitB_forces']
+                    c_f = a.arrays['MACE_fitC_forces']
+                    sigmas = []
+                    for fa, fb, fc in zip(a_f, b_f, c_f):
+                        av = ( fa + fb + fc ) / 3
+                        component_wise_variances = np.mean(( ( fa - av ) ** 2 + ( fb - av ) ** 2 + (fc - av ) ** 2 ) / 3)
+                        sigma = np.sqrt(component_wise_variances)
+                        sigmas.append(sigma)
+                    sigma = np.max(sigmas)
+                    max_force = np.max(np.abs(a.arrays['MACE_forces'].flatten()))
+                    std_devs.append({'ID':i, 'std':sigma, 'max_force':max_force})
+                    a.info['max_sigma'] = sigma
+                except:
+                    sigmas = a.arrays['std_dev']
+                    sigma = np.max(sigmas)
+                    max_force = np.max(a.arrays['MACE_forces'].flatten())
+                    std_devs.append({'ID':i, 'std':sigma, 'max_force':max_force})
+                    a.info['max_sigma'] = sigma
+            
+            df = pd.DataFrame(std_devs)
+            df_order = df.sort_values(by=['std'], ascending=False)
+            im_top = []
+            for index, row in df_order.iterrows():
+                if len(im_top) == self.max_selected:
+                    break
+                elif (row['std'] >= self.nn_uncertainty 
+                      and row['max_force'] <= self.max_force 
+                      and ga.similarity.examine_unconnected_components(atoms[int(row['ID'])])):
+                    print("sigma: ", row['std'], ", maximum_force: ", abs(row['max_force']))
+                    im_top.append(atoms[int(row['ID'])])
+
+            if im_top:
+                ase.io.write(os.path.join(folder,"final.xyz"), im_top)
+
+                for atom in im_top:
+                    atom.info['structure_info'] = label
+                    selected_structures.append(atom)
+                structures = {'final':'final.xyz'}
+                self.generate_DFT_data(
+                                       label_folder,
+                                       structures,
+                                       )
+        self.selected_MD_structures = selected_structures
+        ase.io.write('selected_MD_structures.xyz',self.selected_MD_structures)
+
+
+    def generate_DFT_data(
+                          self,
+                          label_folder,
+                          structures={'final': 'final.xyz'},
+                         ):
+        label, folder = label_folder
+        ls = label.split('-')
+        print(ls)
+    
+        for n, s in structures.items():
+            atoms = ase.io.read(os.path.join(folder, s), ':')
+            for i, atom in enumerate(atoms):
+                # Generalized path generation
+                tpath = os.path.join(self.dftdir, *ls, n, "%.3d" % i)
+    
+                # Ensure the directory exists
+                pathlib.Path(tpath).mkdir(parents=True, exist_ok=True)
+    
+                # Write structure file
+                ase.io.vasp.write_vasp(
+                    os.path.join(tpath, self.dft_files['input_structure']),
+                    atom,
+                    vasp5=True,
+                    sort=True,
+                )
+    
+                # Write run script
+                with open(os.path.join(tpath, self.dft_files['run_script']), 'w') as file:
+                    file.write(generate_vasp_script())
+    
+        os.chdir(self.homedir)
+
+
+    def extract_forces(self):
+        self.dft_scores = {}
+        keeper = []
+        for label, folder in self.dft_folders.items():
+            print(f'\nChecking DFT results of {label}')
+            for key, subfolder in folder.items():
+                keeper += self.check_dft(subfolder, label)
+                # print(f"{label}: {key} successfully processed!")
+        
+        self.add_forces = keeper
+        add_forces = []
+        for s in self.add_forces:
+            for key in ['SOAP', 'structural_info']:
+                s.arrays.pop(key, None)  # Safely removes the key if it exists
+            add_forces.append(s)
+        
+        ase.io.write('add_forces.xyz', add_forces)
+
+
+    def check_dft(self, folder, label):
+        required_files = [os.path.join(folder, f) for f in self.dft_files.values()]
+        if not all(os.path.isfile(f) for f in required_files):
+            print(colored(f'DFT files missing in {folder}', 'red'))
+            return []
+
+        if not self.vasp_finished(os.path.join(folder, self.dft_files['output'])):
+            print(colored(f'DFT not yet completed for {folder}', 'red'))
+            return []
+    
+        try:
+            s = ase.io.read(os.path.join(folder, self.dft_files['input_structure']))
+            result = process_ase(
+                s,
+                os.path.join(folder, 'OUTCAR'),
+            )
+            s = result[0]
+        except Exception as e:
+            print(colored(f'Error processing DFT results in {folder}: {e}', 'red'))
+            return []
+    
+        for k in s:
+            k.info['structure'] = 'slab'
+            k.info['structure_info'] = label
+    
+        ase.io.write(os.path.join(folder, 'forces.xyz'), s)
+        ase.io.write(os.path.join(folder, 'final.in'), s[-1])
+
+        max_force = np.max(np.abs(s[-1].arrays['dft_forces'].flatten()))
+        if max_force <= self.max_force:
+            return [s[-1]]
+        else:
+            print(colored(f'Maximum force larger than the criteria in {folder}', 'red'))
+            return []
