@@ -1,29 +1,56 @@
 # Modify the following script for ASE VASP interface: 'run_vasp.py'
 def generate_vasp_script():
-    return """import ase, ase.io
-import ase.io.vasp
+    return """import ase
+import ase.io
 from ase.calculators.vasp import Vasp
 import numpy as np
-import scipy.linalg as LA
-import sys, os
+import os
+import logging
+from itertools import cycle
 
-# generate Kpoint grids from kspacing value
-def kpoint_grid(cell, dx):
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+# Constants
+INPUT_FILE = "POSCAR"
+STDOUT_FILE = "stdout"
+NELM_MARKER = "NELM"
+MAX_ITERATIONS = 10
+
+def kpoint_grid(cell: ase.Atoms, dx: float) -> list[int]:
+    \"\"\"
+    Generate K-point grids from K-spacing value.
+    \"\"\"
     rc = cell.cell.reciprocal()
-    l_rc = np.empty(3, dtype=np.float64)
-    for i in range(3):
-        l_rc[i] = LA.norm(rc[i], 2)
-    v = l_rc[:]/dx
+    l_rc = np.linalg.norm(rc, axis=1)
+    k_grid_rounded = list(map(int, np.rint(l_rc / dx)))
+    return [max(1, val) for val in k_grid_rounded]
 
-    k_grid_rounded = list(map(int, np.rint(v)))
-    for i in range(3):
-        if k_grid_rounded[i] == 0:
-            k_grid_rounded[i] = 1
-    return k_grid_rounded
+def check_nelm_in_file(file_path: str) -> bool:
+    \"\"\"
+    Check if the string 'NELM' exists in the content of a given file.
+    \"\"\"
+    try:
+        with open(file_path, 'r') as file:
+            return any('NELM' in line.upper() for line in file)
+    except FileNotFoundError:
+        logging.error(f"The file '{file_path}' was not found.")
+        return False
+    except Exception as e:
+        logging.error(f"Unexpected error occurred: {e}")
+        return False
 
-# setup VASP calculator
+# Check input structure
+if not os.path.exists(INPUT_FILE):
+    logging.error(f"Input structure file '{INPUT_FILE}' not found. Exiting.")
+    sys.exit(1)
+
+# Read input structure
+atom = ase.io.read(INPUT_FILE)
+
+# Setup VASP calculators
 calc = Vasp(
-     txt=      'stdout',
+     txt=      STDOUT_FILE,
      prec=     'Accurate',
      xc=       'PBE',
      pp=       'PBE',
@@ -52,48 +79,50 @@ calc = Vasp(
      lmaxmix=  4,
      ldauprint=0,
      ldautype= 2,
-     kpar=5,
-     ncore=5,
+     amix=     0.1,
+     bmix=     0.0001,
+     kpar=     5,
+     ncore=    5,
      )
 
-# read input structure
-atom = ase.io.read("POSCAR")
-
-# if structure too large, set kpoints gamma only.
-if len(atom) > 300:
-    kpts = [1,1,1]
-else:
-    kpts = kpoint_grid(atom, 0.03)
-
-# for slab calculation, set kpoints for z to 1.
-if kpts[2] != 1:
-    kpts[2] = 1
-print("k-points: ", kpts)
+# Adjust k-points
+kpts = kpoint_grid(atom, 0.03) if len(atom) <= 300 else [1, 1, 1]
+kpts[2] = 1
 calc.set(kpts=kpts)
+logging.info(f"K-points set to: {kpts}")
 
-atom.calc = calc
+# Create fallback calculator
+calc2 = calc.copy()
+calc2.set(imix=1)
+calcs = [calc, calc2]
+calc_cycle = cycle(calcs)
 
-atom.get_potential_energy()
+# SCF loop
+finished = False
+iteration = 0
 
-# in case SCF was not converged within NELM
-file_path = 'stdout'
-with open(file_path, 'r') as file:
-    file_contents = file.read()
+while not finished and iteration < MAX_ITERATIONS:
+    current_calc = next(calc_cycle)
+    atom.calc = current_calc
 
-if 'NELM' in file_contents:
-    os.system("touch NELM")
-    calc.set(ismear=1)
-    calc.set(sigma=0.2)
-    atom.calc = calc
-    atom.get_potential_energy()
-    with open(file_path, 'r') as file:
-        file_contents = file.read()
-    if 'NELM' in file_contents:
-        os.system("touch NELM")
-        os.system("qsub control.cmd")
+    try:
+        atom.get_potential_energy()
+        logging.info(f"SCF calculation performed. Iteration: {iteration + 1}")
+    except Exception as e:
+        logging.error(f"Error during SCF calculation: {e}")
+        break
+
+    if check_nelm_in_file(STDOUT_FILE):
+        logging.warning("SCF not converged. Retrying...")
+        os.system(f"touch {NELM_MARKER}")
     else:
-        os.system("rm WAVECAR vasprun.xml NELM")
-else:
-    os.system("rm WAVECAR vasprun.xml NELM")
-"""
+        logging.info("SCF converged successfully.")
+        os.system(f"rm -f WAVECAR vasprun.xml {NELM_MARKER}")
+        finished = True
 
+    iteration += 1
+
+if not finished:
+    logging.error("SCF did not converge within the maximum allowed iterations.")
+
+"""

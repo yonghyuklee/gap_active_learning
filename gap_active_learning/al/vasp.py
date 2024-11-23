@@ -759,7 +759,7 @@ class MACEGen:
                 print(colored('DFT not converged in NELM', 'red'))
                 return False
             if 'Total CPU time used' in content:
-                print(colored('DFT FINISHED', 'green'))
+                # print(colored('DFT FINISHED', 'green'))
                 return True
             print(colored('DFT status unknown', 'yellow'))
             return False
@@ -773,7 +773,7 @@ class MACEGen:
                                           ):
         selected_structures = []
         for label_folder in self.folders.items():
-            s = self.md_files
+            s = self.md_files['final_structure']
             label, folder = label_folder
             print(f"MLP simulated structures read from {folder}")
             atoms = ase.io.read(os.path.join(folder,s), ":")

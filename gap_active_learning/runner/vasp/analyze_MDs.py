@@ -40,7 +40,7 @@ if __name__ == '__main__':
                                  'final_structure' :'md.xyz',
                                  },
                        max_selected = 1000,
-                       nn_uncertainty = 0.4,
+                       nn_uncertainty = 0.1,
                        max_force = 30,
                       )
         print('\n Writing DFT data')
