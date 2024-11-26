@@ -79,8 +79,6 @@ calc = Vasp(
      lmaxmix=  4,
      ldauprint=0,
      ldautype= 2,
-     amix=     0.1,
-     bmix=     0.0001,
      kpar=     5,
      ncore=    5,
      )
@@ -94,7 +92,7 @@ logging.info(f"K-points set to: {kpts}")
 # Create fallback calculator
 params = calc.parameters
 calc2 = Vasp(**params)
-calc2.set(imix=1)
+calc2.set(amix=0.1, bmix=0.0001)
 calcs = [calc, calc2]
 calc_cycle = cycle(calcs)
 
