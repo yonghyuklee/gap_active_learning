@@ -92,7 +92,8 @@ calc.set(kpts=kpts)
 logging.info(f"K-points set to: {kpts}")
 
 # Create fallback calculator
-calc2 = calc.copy()
+params = calc.parameters
+calc2 = Vasp(**params)
 calc2.set(imix=1)
 calcs = [calc, calc2]
 calc_cycle = cycle(calcs)
