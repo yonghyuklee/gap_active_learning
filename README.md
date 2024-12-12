@@ -19,7 +19,19 @@ Please CITE the following paper if you use any methodologies from this repositor
   publisher={AIP Publishing}
 }
 ```
-The manuscript titled `Machine-Learning-Accelerated Surface Exploration of Reconstructed BiVO4(010) and Characterization of Their Aqueous Interfaces` is currently under peer review, with further details to be provided upon publication. Please CITE this paper if you utilize the training set of BiVO4 surfaces.
+The manuscript titled `Machine-Learning-Accelerated Surface Exploration of Reconstructed BiVO4(010) and Characterization of Their Aqueous Interfaces` is currently under peer review, with further details to be provided upon publication. Please CITE this arXiv paper if you utilize the training set of BiVO4 surfaces.
+```
+@misc{Lee2024,
+  title = {Machine-Learning-Accelerated Surface Exploration of Reconstructed BiVO$_{4}$(010) and Characterization of Their Aqueous Interfaces},
+  author = {Lee, Yonghyuk and Lee, Taehun},
+  year = {2024},
+  number = {arXiv:2412.08126},
+  eprint = {2412.08126},
+  eprinttype = {arXiv},
+  doi = {10.48550/arXiv.2412.08126)},
+  archiveprefix = {arXiv}
+ }
+```
 
 # Requirements
 
