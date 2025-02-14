@@ -10,6 +10,7 @@ import glob
 from termcolor import colored
 
 from gap_active_learning.parser.vasp2ase import process_ase
+from gap_active_learning.parser.cluster import *
 
 import gap_active_learning.al as ga
 from gap_active_learning.setups.vasp import *
@@ -37,6 +38,7 @@ class GapGen:
                              'minima_structures' : 'local_minima.db'
                              },
                  md_dir = 'md/',
+                 project = 'CuPd',
 
                  # NEED TO BE TESTED
                  kappa_min = 0.075,
@@ -91,6 +93,7 @@ class GapGen:
         self.dft_files = dft_files
         self.md_files = md_files
         self.gcbh_files = gcbh_files
+        self.project = project
 
         self.get_md_folders(
                             labels,
@@ -529,7 +532,7 @@ class GapGen:
     
                 # Write run script
                 with open(os.path.join(tpath, self.dft_files['run_script']), 'w') as file:
-                    file.write(generate_vasp_script())
+                    file.write(generate_vasp_script(project=self.project))
     
         os.chdir(self.homedir)
 
@@ -696,6 +699,7 @@ class MACEGen:
                  max_selected = 100,
                  nn_uncertainty = 0.1,
                  max_force = 10,
+                 project = 'CuPd',
                  ):
 
         self.homedir = os.path.abspath('.')
@@ -709,6 +713,7 @@ class MACEGen:
         self.dftdir = os.path.join(self.homedir,'dft/')
         self.dft_files = dft_files
         self.md_files = md_files
+        self.project = project
 
         self.get_md_folders()
 
@@ -770,6 +775,8 @@ class MACEGen:
 
     def generate_DFT_data_from_uncertainty(
                                            self,
+                                           cluster=False,
+                                           n_cluster=10,
                                           ):
         selected_structures = []
         for label_folder in self.folders.items():
@@ -777,6 +784,8 @@ class MACEGen:
             label, folder = label_folder
             print(f"MLP simulated structures read from {folder}")
             atoms = ase.io.read(os.path.join(folder,s), ":")
+
+            FE_present = all('FE' in atom.info for atom in atoms)
 
             std_devs = []
             for i, a in enumerate(atoms):
@@ -793,6 +802,9 @@ class MACEGen:
                     sigma = np.max(sigmas)
                     max_force = np.max(np.abs(a.arrays['MACE_forces'].flatten()))
                     std_devs.append({'ID':i, 'std':sigma, 'max_force':max_force})
+                    if FE_present:
+                        std_devs[-1]['FE'] = a.info['FE'] 
+                    
                     a.info['max_sigma'] = sigma
                 except:
                     sigmas = a.arrays['std_dev']
@@ -810,9 +822,12 @@ class MACEGen:
                 elif (row['std'] >= self.nn_uncertainty 
                       and row['max_force'] <= self.max_force 
                       and ga.similarity.examine_unconnected_components(atoms[int(row['ID'])])):
-                    print("sigma: ", row['std'], ", maximum_force: ", abs(row['max_force']))
+                    print(f"sigma: {row['std']}, maximum_force: {row['max_force']}", f", FE: {row['FE']}" if 'FE' in row else "")
                     im_top.append(atoms[int(row['ID'])])
 
+            if cluster and im_top:
+                im_top = kpca_kmeans(im_top, kmeans_clusters=n_cluster, kernel='poly')
+                
             if im_top:
                 ase.io.write(os.path.join(folder,"final.xyz"), im_top)
 
@@ -856,7 +871,7 @@ class MACEGen:
     
                 # Write run script
                 with open(os.path.join(tpath, self.dft_files['run_script']), 'w') as file:
-                    file.write(generate_vasp_script())
+                    file.write(generate_vasp_script(project=self.project))
     
         os.chdir(self.homedir)
 

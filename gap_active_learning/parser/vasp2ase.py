@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import argparse
 import numpy as np
 import pandas as pd
+from ase.units import bar, eV, Angstrom
 from random import randrange
 from gap_active_learning.parser.xyz2data import xyz2data
 
@@ -16,6 +17,8 @@ re_cell = re.compile(r"^\s*direct lattice vectors") # Match lines starting with 
 re_energy = re.compile(r"^\s*energy  without entropy")  # Match lines starting with "energy without entropy"
 re_temperature = re.compile(r"^\s*kin\. lattice")  # Match lines starting with "kin. lattice"
 re_energies = re.compile(r"^\s*Step ")            # Match lines starting with "Step "
+
+kbar2eV_angstrom3 = bar*1000/eV/Angstrom**3
 
 def is_float(element: any) -> bool:
     #If you expect None to be passed:
@@ -31,6 +34,7 @@ def parse_forces_energy(fd):
     line = fd.readline()
     forces = []
     energies = []
+    # stresses = []
     virials = []
     while line:
         if re_forces.match(line):
@@ -47,13 +51,23 @@ def parse_forces_energy(fd):
             e = float(line.split()[6])
             energies.append(e)
         elif re_virial.match(line):
-            for _ in range(14):
+            while line:
+                if line.startswith("  Total"):
+                    break
                 line = fd.readline()
             w = line.split()
+            # Extract the relevant stress tensor values and convert them
+            tensor = [float(w[i]) for i in [1, 4, 6, 4, 2, 5, 6, 5, 3]]
+            # Store virials
+            virials.append(" ".join(map(str, tensor)))
             virials.append("{} {} {} {} {} {} {} {} {}".format(w[1], w[4], w[6], w[4], w[2], w[5], w[6], w[5], w[3]))
+            # Store the converted tensor in a structured format (e.g., as a tuple or string)
+            # tensor = [float(w[i]) / atoms.get_volume() for i in [1, 4, 6, 4, 2, 5, 6, 5, 3]]
+            # stresses.append(" ".join(map(str, tensor)))
+            
         line = fd.readline()
     forces = np.array(forces)
-    return forces,energies,virials
+    return forces,energies,virials #,stresses
 
 def parse_structure(atom, fd):
     line = fd.readline()

@@ -9,6 +9,10 @@ if __name__ == '__main__':
                         help='Choose MLP class among GAP and MACE (default: GAP)')
     parser.add_argument('-HPC','--hpc_cluster', type=str, default='Polaris',
                         help='Choose HPC cluster you want to run DFT calculations')
+    parser.add_argument('-proj','--project', type=str, default='CuPd',
+                        help='Choose VASP input setups for projects (default: CuPd)')
+    parser.add_argument('-sys','--system', type=str, default='pbs',
+                        help='Choose HPC system either pbs or slurm (default: pbs)')
     args = parser.parse_args()
 
     if args.mlp == 'GAP':
@@ -18,7 +22,8 @@ if __name__ == '__main__':
                     #   kappa_min = 0.00000001,
                     #   geoopt_maxsteps = 100,
                       uncertainty_min = 50,
-                      kappa_min = 0.1
+                      kappa_min = 0.1,
+                      project=args.project,
                       )
         print('Calculating best similarities')
         self.uncertainty_analysis()
@@ -41,9 +46,10 @@ if __name__ == '__main__':
                                  },
                        max_selected = 1000,
                        nn_uncertainty = 0.1,
-                       max_force = 30,
+                       max_force = 5,
+                       project=args.project,
                       )
         print('\n Writing DFT data')
-        self.generate_DFT_data_from_uncertainty()
-        write_dft_starter(self.dftdir, walltime="06")
+        self.generate_DFT_data_from_uncertainty(cluster=True, n_cluster=10)
+        write_dft_starter(self.dftdir, walltime="06", system=args.system)
         write_job_script(self.dftdir, hpc=args.hpc_cluster)

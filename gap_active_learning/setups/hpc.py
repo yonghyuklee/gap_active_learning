@@ -1,7 +1,7 @@
 from pathlib import Path
 
 # modify DFT starter below
-def write_dft_starter(dftdir, control_file="dft.cmd", script_name="start_dft.sh", walltime="06"):
+def write_dft_starter(dftdir, control_file="dft.cmd", script_name="start_dft.sh", walltime="06", system='pbs'):
     """
     Writes a shell script to start DFT calculations for directories containing POSCAR files.
 
@@ -12,7 +12,8 @@ def write_dft_starter(dftdir, control_file="dft.cmd", script_name="start_dft.sh"
         walltime (str): Walltime value to substitute in the control file (default: "06").
     """
     # Define the script content
-    script_content = f"""#!/bin/bash
+    if system == 'pbs':
+        script_content = f"""#!/bin/bash
 curdir=$(pwd)
 controlfile=$curdir/{control_file}
 directories=$(find . -type f -name "POSCAR" -exec dirname {{}} \\;)
@@ -28,6 +29,28 @@ for d in $directories; do
         sed -i "s/JOBNAME/$jobname/" control.cmd
         sed -i "s/WALLTIME/{walltime}/" control.cmd
         qsub control.cmd
+        touch queued
+    fi
+    cd $curdir
+done
+"""
+    elif system == 'slurm':
+        script_content = f"""#!/bin/bash
+curdir=$(pwd)
+controlfile=$curdir/{control_file}
+directories=$(find . -type f -name "POSCAR" -exec dirname {{}} \\;)
+for d in $directories; do
+    cd $d
+    if ! [ -f stdout ] && ! [ -f queued ]; then
+        last_part=$(basename "$d")
+        second_part=$(echo "$d" | awk -F'/' '{{print $2}}')
+        m="${{second_part}}-${{last_part}}"
+        jobname=$m
+        echo $m
+        cp $controlfile control.cmd
+        sed -i "s/JOBNAME/$jobname/" control.cmd
+        sed -i "s/WALLTIME/{walltime}/" control.cmd
+        sbatch control.cmd
         touch queued
     fi
     cd $curdir
@@ -140,6 +163,31 @@ module load cray-fftw
 
 setenv ASE_VASP_COMMAND "mpiexec -n $Nprocs /p/home/schiu479/VASP/vasp.6.4.1_cpu/bin/vasp_std"
 setenv VASP_PP_PATH /p/home/schiu479/VASP/pseudo
+
+rm queued
+python run_vasp.py
+""",
+        'NERSC': """#!/bin/bash
+#SBATCH -C cpu
+#SBATCH -t WALLTIME:00:00
+#SBATCH -J JOBNAME
+#SBATCH -o tjob.out.%j
+#SBATCH -e tjob.err.%j
+#SBATCH -A m3200
+#SBATCH -N 8
+#SBATCH --ntasks-per-node=128
+#SBATCH -q regular
+
+module load vasp/5.4.4-cpu
+module load conda
+conda activate torch
+
+function calc(){
+srun vasp_std >> stdout
+}
+
+export ASE_VASP_COMMAND="srun vasp_std"
+export VASP_PP_PATH=/global/homes/y/yhlee/codes/VASP/potpaw
 
 rm queued
 python run_vasp.py
