@@ -6,8 +6,7 @@ Copyright © 2024 Yonghyuk Lee
 
 # Citation
 
-Please CITE the following paper if you use any methodologies from this repository:
-
+Please CITE the following paper if you use any methodologies from this repository. [https://doi.org/10.1063/5.0071249]
 ```
 @article{Timmermann2021,
   title={Data-efficient iterative training of Gaussian approximation potentials: application to surface structure determination of rutile IrO$_{2}$ and RuO$_{2}$},
@@ -19,18 +18,18 @@ Please CITE the following paper if you use any methodologies from this repositor
   publisher={AIP Publishing}
 }
 ```
-The manuscript titled `Machine-Learning-Accelerated Surface Exploration of Reconstructed BiVO4(010) and Characterization of Their Aqueous Interfaces` is currently under peer review, with further details to be provided upon publication. Please CITE this arXiv paper if you utilize the training set of BiVO4 surfaces.
+
+Please CITE the following paper if you utilize the training set of BiVO4 surfaces. [https://doi.org/10.1021/jacs.4c17739]
 ```
 @misc{Lee2024,
-  title = {Machine-Learning-Accelerated Surface Exploration of Reconstructed BiVO$_{4}$(010) and Characterization of Their Aqueous Interfaces},
-  author = {Lee, Yonghyuk and Lee, Taehun},
-  year = {2024},
-  number = {arXiv:2412.08126},
-  eprint = {2412.08126},
-  eprinttype = {arXiv},
-  doi = {10.48550/arXiv.2412.08126)},
-  archiveprefix = {arXiv}
- }
+  title={Machine-Learning-Accelerated Surface Exploration of Reconstructed BiVO$_{4}$(010) and Characterization of Their Aqueous Interfaces},
+  author={Lee, Yonghyuk and Lee, Taehun},
+  journal={Journal of the American Chemical Society},
+  volume={},
+  number={},
+  year={2025},
+  publisher={ACS Publications}
+}
 ```
 
 # Requirements
