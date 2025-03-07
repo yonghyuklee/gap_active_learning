@@ -14,6 +14,7 @@ Please CITE the following paper if you use any methodologies from this repositor
   journal={The Journal of Chemical Physics},
   volume={155},
   number={24},
+  page={244107},
   year={2021},
   publisher={AIP Publishing}
 }
@@ -25,8 +26,9 @@ Please CITE the following paper if you utilize the training set of BiVO4 surface
   title={Machine-Learning-Accelerated Surface Exploration of Reconstructed BiVO$_{4}$(010) and Characterization of Their Aqueous Interfaces},
   author={Lee, Yonghyuk and Lee, Taehun},
   journal={Journal of the American Chemical Society},
-  volume={},
-  number={},
+  volume={147},
+  number={9},
+  page={7799-7808},
   year={2025},
   publisher={ACS Publications}
 }
