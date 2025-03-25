@@ -1,6 +1,6 @@
-# GAP Active Learning Workflow for Surface Structure Determination
+# GAP/MACE Active Learning Workflow for Surface Structure Determination
 
-An integrated protocol for iterative training of the Gaussian Approximation Potential, combined with surface structure exploration through global optimization using simulated annealing.
+An integrated protocol for iterative training of the Gaussian Approximation Potential or the MACE, combined with surface structure exploration through global optimization using simulated annealing.
 
 Copyright © 2024 Yonghyuk Lee
 
