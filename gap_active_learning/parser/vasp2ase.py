@@ -30,7 +30,7 @@ def is_float(element: any) -> bool:
     except ValueError:
         return False
 
-def parse_forces_energy(fd):
+def parse_forces_energy(fd, check_virials=True):
     line = fd.readline()
     forces = []
     energies = []
@@ -50,7 +50,7 @@ def parse_forces_energy(fd):
         elif re_energy.match(line):
             e = float(line.split()[6])
             energies.append(e)
-        elif re_virial.match(line):
+        elif check_virials and re_virial.match(line):
             while line:
                 if line.startswith("  Total"):
                     break
@@ -122,6 +122,7 @@ def parse_structure(atom, fd):
 def process_ase(
                 initial_structure,
                 dft_output,
+                check_virials=True,
                 ):
     snap1 = copy.deepcopy(initial_structure)
     try:
@@ -135,12 +136,13 @@ def process_ase(
         snap1.cell = cell
     atoms = [snap1]
     atoms = atoms + snaps
-    dft_forces, dft_energies, dft_virials = parse_forces_energy(open(dft_output,'r'))
+    dft_forces, dft_energies, dft_virials = parse_forces_energy(open(dft_output,'r'), check_virials=check_virials)
     for n, s in enumerate(atoms):
         if len(temp) > 0:
             s.info['temperature'] = temp[n]
         s.info['dft_energy'] = dft_energies[n]
-        s.info['dft_virial'] = dft_virials[n]
+        if check_virials:
+            s.info['dft_virial'] = dft_virials[n]
         s.set_array('dft_forces',dft_forces[n])
     return atoms, dft_energies
 
@@ -184,20 +186,32 @@ if __name__ == '__main__':
                         help='take nth snapshot of each structure')
     parser.add_argument('-r','--rand',action='store_true',
                         help='take random snapshot of each structure')
+    parser.add_argument('-v','--check_virials',action='store_false',
+                        help='not extract virials')
     parser.add_argument('-name','--name', type=str,
                         help='Name of structure info',)
+    parser.add_argument('-fn', '--file_name', type=str, default='force_trajectory.xyz',
+                        help='Name of the output file')
 
     args = parser.parse_args()
     trajectory = []
 
     sn = args.structure_name
     on = args.output_name
+    fn = args.file_name
 
     for f in args.folders:
         s = ase.io.read('{}/{}'.format(f, sn))
-        result = process_ase(s,
-                             '{}/{}'.format(f,on),
-                             )
+        if not args.check_virials:
+            result = process_ase(s,
+                                 '{}/{}'.format(f,on),
+                                 check_virials=True,
+                                 )
+        else:
+            result = process_ase(s,
+                                 '{}/{}'.format(f,on),
+                                 check_virials=args.check_virials
+                                 )
         s = result[0]
         for k in s:
             k.info['structure'] = 'slab'
@@ -222,9 +236,9 @@ if __name__ == '__main__':
             print(n)
             s = [s[n-1]]
         trajectory  += s
-    ase.io.write('force_trajectory.xyz', trajectory)
+    ase.io.write(fn, trajectory)
     ase.io.write('final.in', trajectory[-1])
-    plot_energy('force_trajectory.xyz')
+    plot_energy(fn)
     
     try:
         os.remove('vasp_trajectory.xyz')

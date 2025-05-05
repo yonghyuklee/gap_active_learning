@@ -21,7 +21,7 @@ if __name__ == '__main__':
                                  },
                        max_selected = 1000,
                        nn_uncertainty = 0.1,
-                       max_force = 30,
+                       max_force = 10,
                       )
         print('Extracting DFT calculations')
         self.get_dft_folders()

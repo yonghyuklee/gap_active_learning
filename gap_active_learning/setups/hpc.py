@@ -174,7 +174,7 @@ python run_vasp.py
 #SBATCH -o tjob.out.%j
 #SBATCH -e tjob.err.%j
 #SBATCH -A m3200
-#SBATCH -N 8
+#SBATCH -N 4
 #SBATCH --ntasks-per-node=128
 #SBATCH -q regular
 

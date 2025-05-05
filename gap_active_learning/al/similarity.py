@@ -16,6 +16,8 @@ def update_structure(
                                   'rcut':5,
                                   'nmax':8,
                                   'lmax':4,
+                                  'sigma': 1.0,
+                                  'average': 'off',
                                   }
                      ):
 
@@ -39,7 +41,8 @@ def update_structure(
                 r_cut=soap_info['rcut'],
                 n_max=soap_info['nmax'],
                 l_max=soap_info['lmax'],
-#                sigma=0.5,
+                sigma=soap_info['sigma'],
+                average=soap_info['average'],
                 )
 
     if type(traj) == list:

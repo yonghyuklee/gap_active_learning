@@ -13,6 +13,8 @@ if __name__ == '__main__':
                         help='Choose VASP input setups for projects (default: CuPd)')
     parser.add_argument('-sys','--system', type=str, default='pbs',
                         help='Choose HPC system either pbs or slurm (default: pbs)')
+    parser.add_argument('-cluster','--n_cluster', type=int, default=10,
+                        help='Number of clusters in PCA sampling')
     args = parser.parse_args()
 
     if args.mlp == 'GAP':
@@ -45,11 +47,11 @@ if __name__ == '__main__':
                                  'final_structure' :'md.xyz',
                                  },
                        max_selected = 1000,
-                       nn_uncertainty = 0.1,
+                       nn_uncertainty = 0.2,
                        max_force = 5,
                        project=args.project,
                       )
         print('\n Writing DFT data')
-        self.generate_DFT_data_from_uncertainty(cluster=True, n_cluster=10)
+        self.generate_DFT_data_from_uncertainty(cluster=True, n_cluster=args.n_cluster)
         write_dft_starter(self.dftdir, walltime="06", system=args.system)
         write_job_script(self.dftdir, hpc=args.hpc_cluster)
