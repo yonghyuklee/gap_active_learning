@@ -700,6 +700,7 @@ class MACEGen:
                  nn_uncertainty = 0.1,
                  max_force = 10,
                  project = 'CuPd',
+                 foundation = False,
                  ):
 
         self.homedir = os.path.abspath('.')
@@ -707,6 +708,7 @@ class MACEGen:
         self.mddir = os.path.join(self.homedir,md_dir)
         self.nn_uncertainty = nn_uncertainty
         self.max_force = max_force
+        self.foundation = foundation
 
         if self.mddir[-1] != '/':
             self.mddir+= '/'
@@ -787,43 +789,47 @@ class MACEGen:
 
             FE_present = all('FE' in atom.info for atom in atoms)
 
-            std_devs = []
-            for i, a in enumerate(atoms):
-                try:
-                    a_f = a.arrays['MACE_fitA_forces']
-                    b_f = a.arrays['MACE_fitB_forces']
-                    c_f = a.arrays['MACE_fitC_forces']
-                    sigmas = []
-                    for fa, fb, fc in zip(a_f, b_f, c_f):
-                        av = ( fa + fb + fc ) / 3
-                        component_wise_variances = np.mean(( ( fa - av ) ** 2 + ( fb - av ) ** 2 + (fc - av ) ** 2 ) / 3)
-                        sigma = np.sqrt(component_wise_variances)
-                        sigmas.append(sigma)
-                    sigma = np.max(sigmas)
-                    max_force = np.max(np.abs(a.arrays['MACE_forces'].flatten()))
-                    std_devs.append({'ID':i, 'std':sigma, 'max_force':max_force})
-                    if FE_present:
-                        std_devs[-1]['FE'] = a.info['FE'] 
-                    
-                    a.info['max_sigma'] = sigma
-                except:
-                    sigmas = a.arrays['std_dev']
-                    sigma = np.max(sigmas)
-                    max_force = np.max(a.arrays['MACE_forces'].flatten())
-                    std_devs.append({'ID':i, 'std':sigma, 'max_force':max_force})
-                    a.info['max_sigma'] = sigma
+            if not self.foundation:
+                std_devs = []
+                for i, a in enumerate(atoms):
+                    try:
+                        a_f = a.arrays['MACE_fitA_forces']
+                        b_f = a.arrays['MACE_fitB_forces']
+                        c_f = a.arrays['MACE_fitC_forces']
+                        sigmas = []
+                        for fa, fb, fc in zip(a_f, b_f, c_f):
+                            av = ( fa + fb + fc ) / 3
+                            component_wise_variances = np.mean(( ( fa - av ) ** 2 + ( fb - av ) ** 2 + (fc - av ) ** 2 ) / 3)
+                            sigma = np.sqrt(component_wise_variances)
+                            sigmas.append(sigma)
+                        sigma = np.max(sigmas)
+                        max_force = np.max(np.abs(a.arrays['MACE_forces'].flatten()))
+                        std_devs.append({'ID':i, 'std':sigma, 'max_force':max_force})
+                        if FE_present:
+                            std_devs[-1]['FE'] = a.info['FE'] 
+                        
+                        a.info['max_sigma'] = sigma
+                    except:
+                        sigmas = a.arrays['std_dev']
+                        sigma = np.max(sigmas)
+                        max_force = np.max(a.arrays['MACE_forces'].flatten())
+                        std_devs.append({'ID':i, 'std':sigma, 'max_force':max_force})
+                        a.info['max_sigma'] = sigma
             
-            df = pd.DataFrame(std_devs)
-            df_order = df.sort_values(by=['std'], ascending=False)
-            im_top = []
-            for index, row in df_order.iterrows():
-                if len(im_top) == self.max_selected:
-                    break
-                elif (row['std'] >= self.nn_uncertainty 
-                      and row['max_force'] <= self.max_force 
-                      and ga.similarity.examine_unconnected_components(atoms[int(row['ID'])])):
-                    print(f"sigma: {row['std']}, maximum_force: {row['max_force']}", f", FE: {row['FE']}" if 'FE' in row else "")
-                    im_top.append(atoms[int(row['ID'])])
+                df = pd.DataFrame(std_devs)
+                df_order = df.sort_values(by=['std'], ascending=False)
+                im_top = []
+                for index, row in df_order.iterrows():
+                    if len(im_top) == self.max_selected:
+                        break
+                    elif (row['std'] >= self.nn_uncertainty 
+                          and row['max_force'] <= self.max_force 
+                          and ga.similarity.examine_unconnected_components(atoms[int(row['ID'])])):
+                        print(f"sigma: {row['std']}, maximum_force: {row['max_force']}", f", FE: {row['FE']}" if 'FE' in row else "")
+                        im_top.append(atoms[int(row['ID'])])
+
+            elif self.foundation:
+                im_top = atoms
 
             if cluster and im_top:
                 im_top = kpca_kmeans(im_top, kmeans_clusters=n_cluster, kernel='poly')

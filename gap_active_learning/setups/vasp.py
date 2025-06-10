@@ -80,8 +80,8 @@ calc = Vasp(
      lmaxmix=  4,
      ldauprint=0,
      ldautype= 2,
-    #  kpar=     5,
-    #  ncore=    5,
+     kpar=     4,
+     ncore=    16,
      )
 
 # Adjust k-points
