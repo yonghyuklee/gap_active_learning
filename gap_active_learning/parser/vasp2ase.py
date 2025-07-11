@@ -17,6 +17,7 @@ re_cell = re.compile(r"^\s*direct lattice vectors") # Match lines starting with 
 re_energy = re.compile(r"^\s*energy  without entropy")  # Match lines starting with "energy without entropy"
 re_temperature = re.compile(r"^\s*kin\. lattice")  # Match lines starting with "kin. lattice"
 re_energies = re.compile(r"^\s*Step ")            # Match lines starting with "Step "
+re_magmom = re.compile(r"^\s*magnetization \(x\)")            # Match lines starting with "Step "
 
 kbar2eV_angstrom3 = bar*1000/eV/Angstrom**3
 
@@ -30,12 +31,13 @@ def is_float(element: any) -> bool:
     except ValueError:
         return False
 
-def parse_forces_energy(fd, check_virials=True):
+def parse_forces_energy(fd, check_virials=True, check_magmoms=True):
     line = fd.readline()
     forces = []
     energies = []
     # stresses = []
     virials = []
+    magmoms = []
     while line:
         if re_forces.match(line):
             force = []
@@ -64,10 +66,23 @@ def parse_forces_energy(fd, check_virials=True):
             # Store the converted tensor in a structured format (e.g., as a tuple or string)
             # tensor = [float(w[i]) / atoms.get_volume() for i in [1, 4, 6, 4, 2, 5, 6, 5, 3]]
             # stresses.append(" ".join(map(str, tensor)))
-            
+        elif check_magmoms and re_magmom.match(line):
+            magmom = []
+            while line:
+                if line.startswith("------------------------------------------"):
+                    break
+                line = fd.readline()
+            line = fd.readline()
+            w = line.split()
+            while len(w) == 5:
+                magmom.append(float(w[-1]))
+                line = fd.readline()
+                w = line.split()
+            magmoms.append(magmom)
         line = fd.readline()
     forces = np.array(forces)
-    return forces,energies,virials #,stresses
+    magmoms = np.array(magmoms)
+    return forces,energies,virials,magmoms #,stresses
 
 def parse_structure(atom, fd):
     line = fd.readline()
@@ -123,6 +138,7 @@ def process_ase(
                 initial_structure,
                 dft_output,
                 check_virials=True,
+                check_magmoms=True,
                 ):
     snap1 = copy.deepcopy(initial_structure)
     try:
@@ -136,7 +152,7 @@ def process_ase(
         snap1.cell = cell
     atoms = [snap1]
     atoms = atoms + snaps
-    dft_forces, dft_energies, dft_virials = parse_forces_energy(open(dft_output,'r'), check_virials=check_virials)
+    dft_forces, dft_energies, dft_virials, dft_magmoms = parse_forces_energy(open(dft_output,'r'), check_virials=check_virials, check_magmoms=check_magmoms)
     for n, s in enumerate(atoms):
         if len(temp) > 0:
             s.info['temperature'] = temp[n]
@@ -144,6 +160,8 @@ def process_ase(
         if check_virials:
             s.info['dft_virial'] = dft_virials[n]
         s.set_array('dft_forces',dft_forces[n])
+        if check_magmoms:
+            s.set_array('dft_magmoms',dft_magmoms[n])
     return atoms, dft_energies
 
 
@@ -186,8 +204,10 @@ if __name__ == '__main__':
                         help='take nth snapshot of each structure')
     parser.add_argument('-r','--rand',action='store_true',
                         help='take random snapshot of each structure')
-    parser.add_argument('-v','--check_virials',action='store_false',
-                        help='not extract virials')
+    parser.add_argument('-v','--check_virials',action='store_false',default=True,
+                        help='NOT extract virials')
+    parser.add_argument('-m','--check_magmoms',action='store_false',default=True,
+                        help='NOT extract magnetic moments')
     parser.add_argument('-name','--name', type=str,
                         help='Name of structure info',)
     parser.add_argument('-fn', '--file_name', type=str, default='force_trajectory.xyz',
@@ -200,18 +220,17 @@ if __name__ == '__main__':
     on = args.output_name
     fn = args.file_name
 
+    cv = args.check_virials
+    cm = args.check_magmoms
+
+
     for f in args.folders:
         s = ase.io.read('{}/{}'.format(f, sn))
-        if not args.check_virials:
-            result = process_ase(s,
-                                 '{}/{}'.format(f,on),
-                                 check_virials=True,
-                                 )
-        else:
-            result = process_ase(s,
-                                 '{}/{}'.format(f,on),
-                                 check_virials=args.check_virials
-                                 )
+        result = process_ase(s,
+                             '{}/{}'.format(f,on),
+                             check_virials=cv,
+                             check_magmoms=cm,
+                             )
         s = result[0]
         for k in s:
             k.info['structure'] = 'slab'

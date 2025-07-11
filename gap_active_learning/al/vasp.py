@@ -823,8 +823,8 @@ class MACEGen:
                     if len(im_top) == self.max_selected:
                         break
                     elif (row['std'] >= self.nn_uncertainty 
-                          and row['max_force'] <= self.max_force 
-                          and ga.similarity.examine_unconnected_components(atoms[int(row['ID'])])):
+                          and row['max_force'] <= self.max_force):
+                        #   and ga.similarity.examine_unconnected_components(atoms[int(row['ID'])])):
                         print(f"sigma: {row['std']}, maximum_force: {row['max_force']}", f", FE: {row['FE']}" if 'FE' in row else "")
                         im_top.append(atoms[int(row['ID'])])
 
@@ -832,7 +832,9 @@ class MACEGen:
                 im_top = atoms
 
             if cluster and im_top:
+                print('PCA on!')
                 im_top = kpca_kmeans(im_top, kmeans_clusters=n_cluster, kernel='poly')
+                print(len(im_top))
                 
             if im_top:
                 ase.io.write(os.path.join(folder,"final.xyz"), im_top)
